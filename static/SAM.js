@@ -1,6 +1,10 @@
-gWidth = 2080;
-gHeight = 850;
-gFontFamily = 'Consolas, Monaco, monospace';
+var gWidth = 2080;
+var gHeight = 850;
+var gFontFamily = 'Consolas, Monaco, monospace';
+var gLineWidth = 2;
+var unitX = 15;
+var unitY = 23;
+var nodeList = [];
 
 var app = new PIXI.Application(
     gWidth,
@@ -10,8 +14,6 @@ var app = new PIXI.Application(
 
 document.body.appendChild(app.view);
 
-unitX = 15;
-unitY = 23;
 
 function textFactory(rawString, defaultAlpha) {
     function activate(){
@@ -42,7 +44,37 @@ function textFactory(rawString, defaultAlpha) {
     return text;
 }
 
+function lineFactory(stPoint, edPoint, lineColor) {
+    var graphics = new PIXI.Graphics();
+    graphics.beginFill(lineColor, 1);
+    graphics.drawRect(0, 0, 1, 1);
+    var line = new PIXI.Sprite(graphics.generateTexture());
+
+    line.setEndPoint = function (startPoint, endPoint) {
+        var angle = Math.atan2(endPoint.y - startPoint.y, endPoint.x - startPoint.x);
+
+        line.x = startPoint.x;
+        line.y = startPoint.y;
+        function distance(pointA, pointB) {
+            return Math.sqrt(
+                (pointA.x - pointB.x)
+                * (pointA.x - pointB.x)
+                + (pointA.y - pointB.y)
+                * (pointA.y - pointB.y)
+            )
+        }
+        line.scale.x = distance(startPoint, endPoint);
+        line.scale.y = gLineWidth;
+        line.rotation = angle;
+    };
+    line.setEndPoint(stPoint, edPoint);
+
+    return line;
+}
+
+
 function arrowFactory(startPoint, endPoint){
+
     function update(startPoint, endPoint){
         //update start position
         //update end position
@@ -56,8 +88,14 @@ function arrowFactory(startPoint, endPoint){
 }
 
 function backLinkFactory(startPoint, endPoint) {
-    //show start
-    //show end
+    var line = lineFactory(startPoint, endPoint, 0x000000);
+    line.activate = function(){
+        this.alpha = 1;
+    };
+    line.deactivate = function(){
+        this.alpha = 0;
+    };
+    return line;
 }
 
 function nodeFactory(minLen, maxLen, nodeStr) {
@@ -71,7 +109,9 @@ function nodeFactory(minLen, maxLen, nodeStr) {
             var new_position = this.data.getLocalPosition(this.parent);
             this.x = new_position.x;
             this.y = new_position.y;
-            console.log(new_position);
+            if (this.father){
+                this._refreshFather();
+            }
         }
     }
     function onDragEnd() {
@@ -96,18 +136,16 @@ function nodeFactory(minLen, maxLen, nodeStr) {
     }
 
     var samNode = new PIXI.Sprite(genGraphics().generateTexture());
-
-    for (i  = 1; i <= height; i++)
-    {
+    samNode.texts = [];
+    for (i  = 1; i <= height; i++){
         var text = new textFactory(
             nodeStr.slice(height - i),
             (i === 1 || i === height) * 0.5
         );
-
         text.x = (height - i + 1) * unitX;
         text.y = (i - 1) * unitY;
-
         samNode.addChild(text);
+        samNode.texts.push(text);
     }
 
     samNode.interactive = true;
@@ -118,17 +156,26 @@ function nodeFactory(minLen, maxLen, nodeStr) {
         .on('pointerupoutside', onDragEnd)
         .on('pointermove', onDragMove);
 
-    samNode.getNodePosition = function (type) {
+    samNode.backLink = backLinkFactory(
+        new PIXI.Point(0, 0),
+        new PIXI.Point(0, 0)
+    );
+    samNode.backLink.deactivate();
+    samNode.addChild(samNode.backLink);
+
+    samNode.getNodePosition = function (type, x, y) {
+        x = typeof(x) === "undefined" ? 0: x + this.x;
+        y = typeof(y) === "undefined" ? 0: y + this.y;
         if (type === "top"){
             return new PIXI.Point(
-                this.x + (height  * 2 + minLen) * unitX / 2,
-                this.y
+                (height  * 2 + minLen) * unitX / 2 + x,
+                0 + y
             );
         }
         if (type === "down"){
             return new PIXI.Point(
-                this.x +  (maxLen + 1) * unitX / 2,
-                this.y + height * unitY
+                (maxLen + 1) * unitX / 2 + x,
+                height * unitY + y
             );
         }
         return null;
@@ -139,44 +186,65 @@ function nodeFactory(minLen, maxLen, nodeStr) {
             this.y + (0.5 + number) * unitY
         )
     };
+    samNode.setFather = function (fatherId) {
+        this.father = fatherId;
+        this._refreshFather();
+        this.backLink.activate();
+    };
+    samNode._refreshFather = function () {
+        this.backLink.setEndPoint(
+            this.getNodePosition("top"),
+            nodeList[this.father].getNodePosition("down", -this.x, -this.y)
+        );
+    };
+    samNode.resize = function () {
+        //todo
+    };
     return samNode;
 }
 
-nodeList = [];
+function test() {
 
-nodeList[0] = nodeFactory(3, 6, "AQWDRA");
-nodeList[0].x = unitX * 4;
-nodeList[0].y = unitY * 4;
+    nodeList[0] = nodeFactory(3, 6, "AQWDRA");
+    nodeList[0].x = unitX * 4;
+    nodeList[0].y = unitY * 4;
 
-nodeList[1] = nodeFactory(5, 6, "QWDRAB");
-nodeList[1].x = unitX * 10;
-nodeList[1].y = unitY * 10;
+    nodeList[1] = nodeFactory(5, 6, "QWDRAB");
+    nodeList[1].x = unitX * 10;
+    nodeList[1].y = unitY * 10;
 
-for (var i = 0; i < 2; i++)
-    app.stage.addChild(nodeList[i]);
+    for (var i = 0; i < 2; i++)
+        app.stage.addChild(nodeList[i]);
 
-function showOne(position) {
-    console.log(position);
-    var graphics = new PIXI.Graphics();
-    graphics.beginFill(0X000000, 1);
-    var edgeLen = 2;
-    graphics.drawPolygon(
-        new PIXI.Polygon([
-            new PIXI.Point(-edgeLen, -edgeLen),
-            new PIXI.Point( edgeLen, -edgeLen),
-            new PIXI.Point( edgeLen,  edgeLen),
-            new PIXI.Point(-edgeLen,  edgeLen)
-        ])
-    );
-    graphics.x = position.x - edgeLen / 2;
-    graphics.y = position.y - edgeLen / 2;
-    app.stage.addChild(graphics);
+    function showOne(position) {
+        var graphics = new PIXI.Graphics();
+        graphics.beginFill(0X000000, 1);
+        var edgeLen = 2;
+        graphics.drawPolygon(
+            new PIXI.Polygon([
+                new PIXI.Point(-edgeLen, -edgeLen),
+                new PIXI.Point( edgeLen, -edgeLen),
+                new PIXI.Point( edgeLen,  edgeLen),
+                new PIXI.Point(-edgeLen,  edgeLen)
+            ])
+        );
+        graphics.x = position.x - edgeLen / 2;
+        graphics.y = position.y - edgeLen / 2;
+        app.stage.addChild(graphics);
+    }
+
+    nodeList[0].setFather(1);
+
+    /*
+    showOne(nodeList[0].getNodePosition("top"));
+    showOne(nodeList[0].getNodePosition("down"));
+
+    for (var i = 0; i <= 3 ; i ++){
+        showOne(nodeList[0].getPosition(i, 0));
+        showOne(nodeList[0].getPosition(i, 1));
+    }
+    */
 }
 
-showOne(nodeList[0].getNodePosition("top"));
-showOne(nodeList[0].getNodePosition("down"));
+test();
 
-for (var i = 0; i <= 3 ; i ++){
-    showOne(nodeList[0].getPosition(i, 0));
-    showOne(nodeList[0].getPosition(i, 1));
-}
