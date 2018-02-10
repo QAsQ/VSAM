@@ -5,9 +5,7 @@ gFontFamily = 'Consolas, Monaco, monospace';
 var app = new PIXI.Application(
     gWidth,
     gHeight,
-    {
-        backgroundColor: 0xD6DaD9
-    }
+    { backgroundColor: 0xD6DaD9 }
 );
 
 document.body.appendChild(app.view);
@@ -15,46 +13,54 @@ document.body.appendChild(app.view);
 unitX = 15;
 unitY = 23;
 
-function textFactory(rawString) {
+function textFactory(rawString, defaultAlpha) {
     function activate(){
-
+        this.alpha = 1;
+        //show arrow
     }
     function deactivate(){
-
+        this.alpha = this.defaultAlpha;
+        //hide arrow
     }
     function highLight(start, end) {
-        
+        //show self
+        //
     }
+
     var text = new PIXI.Text(
         rawString,
         new PIXI.TextStyle({
             fontFamily: gFontFamily
         })
     );
+
+    text.interactive = true;
+    text.alpha = text.defaultAlpha = defaultAlpha;
+    text
+        .on('pointerover', activate)
+        .on('pointerout', deactivate);
     return text;
 }
 
 function arrowFactory(startPoint, endPoint){
-    //todo:
-    function update(){
-
+    function update(startPoint, endPoint){
+        //update start position
+        //update end position
     }
     function activate(){
-
+        //show self
     }
     function deactivate(){
-
+        //hide self
     }
-
-
 }
 
-function backLinkFactory() {
-    //todo:
+function backLinkFactory(startPoint, endPoint) {
+    //show start
+    //show end
 }
 
 function nodeFactory(minLen, maxLen, nodeStr) {
-
     function onDragStart(event) {
         this.data = event.data;
         this.alpha = 0.8;
@@ -65,6 +71,7 @@ function nodeFactory(minLen, maxLen, nodeStr) {
             var new_position = this.data.getLocalPosition(this.parent);
             this.x = new_position.x;
             this.y = new_position.y;
+            console.log(new_position);
         }
     }
     function onDragEnd() {
@@ -73,13 +80,13 @@ function nodeFactory(minLen, maxLen, nodeStr) {
         this.data = null;
     }
 
-    var verticalDis = maxLen - minLen + 1;
+    var height = maxLen - minLen + 1;
     function genGraphics() {
         var trapesoid = new PIXI.Polygon([
-            new PIXI.Point(verticalDis * unitX, 0),
+            new PIXI.Point(height * unitX, 0),
             new PIXI.Point((maxLen + 1) * unitX, 0),
-            new PIXI.Point((maxLen + 1) * unitX, verticalDis * unitY),
-            new PIXI.Point(0, verticalDis * unitY)
+            new PIXI.Point((maxLen + 1) * unitX, height * unitY),
+            new PIXI.Point(0, height * unitY)
         ]);
 
         var graphics = new PIXI.Graphics();
@@ -87,56 +94,89 @@ function nodeFactory(minLen, maxLen, nodeStr) {
         graphics.drawPolygon(trapesoid);
         return graphics;
     }
+
     var samNode = new PIXI.Sprite(genGraphics().generateTexture());
 
-    for (i  = 1; i <= verticalDis; i++)
+    for (i  = 1; i <= height; i++)
     {
-        function onTextOver() {
-            this.alpha = 1
-        }
-        function onTextOut() {
-            this.alpha = this.defaultAlpha;
-        }
-        var oneText = new PIXI.Text(nodeStr.slice(verticalDis - i),
-            new PIXI.TextStyle(
-                {
-                    fontFamily: 'Consolas, Monaco, monospace'
-                }));
-        oneText.x = (verticalDis - i + 1) * unitX;
-        oneText.y = (i - 1) * unitY;
-        if (i === 1 || i === verticalDis){
-            oneText.defaultAlpha = 0.5;
-        }
-        else{
-            oneText.defaultAlpha = 0;
-        }
-        oneText.alpha = oneText.defaultAlpha;
-        oneText.interactive = true;
-        oneText
-            .on('pointerover',onTextOver)
-            .on('pointerout', onTextOut);
-        samNode.addChild(oneText);
+        var text = new textFactory(
+            nodeStr.slice(height - i),
+            (i === 1 || i === height) * 0.5
+        );
+
+        text.x = (height - i + 1) * unitX;
+        text.y = (i - 1) * unitY;
+
+        samNode.addChild(text);
     }
 
     samNode.interactive = true;
+    samNode.alpha = 0.5;
     samNode
         .on('pointerdown', onDragStart)
         .on('pointerup', onDragEnd)
         .on('pointerupoutside', onDragEnd)
         .on('pointermove', onDragMove);
 
-    samNode.alpha = 0.5;
-
+    samNode.getNodePosition = function (type) {
+        if (type === "top"){
+            return new PIXI.Point(
+                this.x + (height  * 2 + minLen) * unitX / 2,
+                this.y
+            );
+        }
+        if (type === "down"){
+            return new PIXI.Point(
+                this.x +  (maxLen + 1) * unitX / 2,
+                this.y + height * unitY
+            );
+        }
+        return null;
+    };
+    samNode.getPosition = function (number, start) {
+        return new PIXI.Point(
+            this.x + (start ? height - number - 0.5: (maxLen + 1)) * unitX,
+            this.y + (0.5 + number) * unitY
+        )
+    };
     return samNode;
 }
 
-var one_node = nodeFactory(3, 6, "AQWDRA");
-one_node.x = unitX * 4;
-one_node.y = unitY * 4;
+nodeList = [];
 
-var two_node = nodeFactory(5, 6, "QWDRAB");
-two_node.x = unitX * 10;
-two_node.y = unitY * 10;
+nodeList[0] = nodeFactory(3, 6, "AQWDRA");
+nodeList[0].x = unitX * 4;
+nodeList[0].y = unitY * 4;
 
-app.stage.addChild(one_node);
-app.stage.addChild(two_node);
+nodeList[1] = nodeFactory(5, 6, "QWDRAB");
+nodeList[1].x = unitX * 10;
+nodeList[1].y = unitY * 10;
+
+for (var i = 0; i < 2; i++)
+    app.stage.addChild(nodeList[i]);
+
+function showOne(position) {
+    console.log(position);
+    var graphics = new PIXI.Graphics();
+    graphics.beginFill(0X000000, 1);
+    var edgeLen = 2;
+    graphics.drawPolygon(
+        new PIXI.Polygon([
+            new PIXI.Point(-edgeLen, -edgeLen),
+            new PIXI.Point( edgeLen, -edgeLen),
+            new PIXI.Point( edgeLen,  edgeLen),
+            new PIXI.Point(-edgeLen,  edgeLen)
+        ])
+    );
+    graphics.x = position.x - edgeLen / 2;
+    graphics.y = position.y - edgeLen / 2;
+    app.stage.addChild(graphics);
+}
+
+showOne(nodeList[0].getNodePosition("top"));
+showOne(nodeList[0].getNodePosition("down"));
+
+for (var i = 0; i <= 3 ; i ++){
+    showOne(nodeList[0].getPosition(i, 0));
+    showOne(nodeList[0].getPosition(i, 1));
+}
