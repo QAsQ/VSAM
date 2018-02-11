@@ -3,13 +3,13 @@ var gHeight = 850;
 var gFontFamily = 'Consolas, Monaco, monospace';
 var gLineWidth = 2;
 var unitX = 14;
-var unitY = 23;
+var unitY = 26;
 var nodeList = [];
 
 var app = new PIXI.Application(
     gWidth,
     gHeight,
-    { backgroundColor: 0xD6DaD9 }
+    { backgroundColor: 0xffffff}
 );
 
 document.body.appendChild(app.view);
@@ -98,9 +98,8 @@ function lineFactory(stPoint, edPoint, lineColor) {
     return line;
 }
 
-
 function arrowFactory(startPoint, endPoint){
-    var tempArrow = lineFactory(startPoint, endPoint, 0xffffff);
+    var tempArrow = lineFactory(startPoint, endPoint, 0xD6DaD9);
     tempArrow.activate = function(){
         this.alpha = 1;
     };
@@ -169,7 +168,7 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
             new PIXI.Point(0, 0),
             new PIXI.Point(0, 0)
         );
-        //arrow.deactivate();
+        arrow.deactivate();
         this.next[key] = {
             "nextId": nextId,
             "arrow": arrow
