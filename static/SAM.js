@@ -2,7 +2,7 @@ var gWidth = 2080;
 var gHeight = 850;
 var gFontFamily = 'Consolas, Monaco, monospace';
 var gLineWidth = 2;
-var unitX = 15;
+var unitX = 14;
 var unitY = 23;
 var nodeList = [];
 
@@ -23,24 +23,50 @@ function textFactory(rawString, activateCallBack, deactivateCallBack) {
     }
     function deactivate(){
         this.alpha = this.defaultAlpha;
-        deactivateCallBack();
+        this.defaultAlpha = undefined;
+        deactivateCallBack(rawString.length);
     }
-    function highLight(start, end) {
-        //show self
-        //
-    }
-
     var text = new PIXI.Text(
         rawString,
         new PIXI.TextStyle({
             fontFamily: gFontFamily
         })
     );
-
+    var tailText = new PIXI.Text(
+        rawString[rawString.length - 1],
+        new PIXI.TextStyle({
+            fontFamily: gFontFamily,
+            fill: '#ff2433',
+            stroke: '#ff2433',
+            strokeThickness: 1
+        })
+    );
+    tailText.x = (rawString.length - 1) * unitX;
+    tailText.alpha = 0;
+    text.addChild(tailText);
     text.interactive = true;
     text
         .on('pointerover', activate)
         .on('pointerout', deactivate);
+
+    text.highLight = function(state) {
+        if (state === "end_one"){
+            tailText.alpha = 1;
+            this.show();
+        }
+        if (state === "clean"){
+            tailText.alpha = 0;
+            this.hide();
+        }
+    };
+    text.show = function () {
+        this.defaultAlpha = this.alpha;
+        this.alpha = 1;
+    };
+    text.hide = function () {
+        this.alpha = this.defaultAlpha;
+        this.defaultAlpha = undefined;
+    };
     return text;
 }
 
@@ -87,10 +113,10 @@ function arrowFactory(startPoint, endPoint){
 function backEdgeFactory(startPoint, endPoint) {
     var backEdge = lineFactory(startPoint, endPoint, 0x000000);
     backEdge.activate = function(){
-        this.alpha = 1;
+        //this.alpha = 1;
     };
     backEdge.deactivate = function(){
-        this.alpha = 0;
+        //this.alpha = 0;
     };
     return backEdge;
 }
@@ -98,7 +124,7 @@ function backEdgeFactory(startPoint, endPoint) {
 function nodeFactory(id, minLen, maxLen, nodeText) {
     function onDragStart(event) {
         this.data = event.data;
-        this.alpha = 0.8;
+        this.alpha = 1;
         this.dragging = true;
     }
     function onDragMove() {
@@ -116,7 +142,7 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
         }
     }
     function onDragEnd() {
-        this.alpha = 0.5;
+        this.alpha = 0.9;
         this.dragging = false;
         this.data = null;
     }
@@ -155,13 +181,12 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
         for (var aim in samNode.next){
             var next = samNode.next[aim];
             var arrow = next['arrow'];
-            var id = next['nextId'];
+            var nextId = next['nextId'];
             arrow.setEndPoint(
                 samNode.getPosition(rank, false, false),
-                nodeList[id].getPosition(textLen + 1, true, true, -this.x, -this.y)
+                nodeList[nextId].getPosition(textLen + 1, true, true, -this.x, -this.y)
             );
-            nodeList[id].activateText(textLen);
-        };
+        }
     };
     function activateTextCallback(textLen) {
         var rank = textLen - minLen;
@@ -169,13 +194,21 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
         samNode.currentText = rank;
         for (var aim in samNode.next){
             var next = samNode.next[aim];
+            var nextId = next['nextId'];
             var arrow = next['arrow'];
             arrow.activate();
+            nodeList[nextId].activateText(textLen);
         }
     }
-    function deactivateTextCallback() {
-        //this.currentText = null;
-        //todo hide arrow
+    function deactivateTextCallback(textLen) {
+        this.currentText = undefined;
+        for (var aim in samNode.next){
+            var next = samNode.next[aim];
+            var nextId = next['nextId'];
+            var arrow = next['arrow'];
+            arrow.deactivate();
+            nodeList[nextId].deactivateText(textLen);
+        }
     }
 
     samNode.texts = [];
@@ -187,13 +220,13 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
         );
         text.x = (height - i + 1) * unitX;
         text.y = (i - 1) * unitY;
-        text.alpha = (i === 1 || i === height) * 0.5;
+        text.alpha = (i === 1 || i === height) * 0.8;
         samNode.addChild(text);
         samNode.texts.push(text);
     }
 
     samNode.interactive = true;
-    samNode.alpha = 0.5;
+    samNode.alpha = 0.9;
     samNode
         .on('pointerdown', onDragStart)
         .on('pointerup', onDragEnd)
@@ -201,10 +234,13 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
         .on('pointermove', onDragMove);
 
     samNode.activateText = function (textLen) {
-
+        var rank = Math.min(textLen - minLen + 1, height - 1);
+        samNode.texts[rank].highLight("end_one");
     };
-    samNode.deactivateText = function (textLen) {
 
+    samNode.deactivateText = function (textLen) {
+        var rank = Math.min(textLen - minLen + 1, height - 1);
+        samNode.texts[rank].highLight("clean");
     };
 
     samNode.backEdge = backEdgeFactory(
@@ -243,7 +279,7 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
         y = typeof(y) === "undefined" ? 0: y + this.y;
 
         if (isRelatively){
-            number = Math.min(number - minLen, height);
+            number = Math.min(number - minLen, height - 1);
         }
         return new PIXI.Point(
             (begin ? height - number - 0.5 : (maxLen + 1)) * unitX + x,
@@ -280,7 +316,7 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
 function test() {
     function showOne(position) {
         var graphics = new PIXI.Graphics();
-        graphics.beginFill(0X000000, 1);
+        graphics.beginFill(0x000000, 1);
         var edgeLen = 2;
         graphics.drawPolygon(
             new PIXI.Polygon([
@@ -298,7 +334,9 @@ function test() {
         [0, 0, '', 13, 8],
         [1, 1, 'A', 10, 10],
         [2, 2, 'AA', 9, 12],
-        [1, 3, 'AAB', 13, 10]
+        [1, 1, 'B', 17, 10],
+        [2, 3, 'AAB', 13, 12],
+        [2, 4, 'AABB', 18, 13]
     ];
 
     for (var i = 0; i < sampleNode.length; i++){
@@ -312,8 +350,16 @@ function test() {
     nodeList[1].setFather(0);
     nodeList[2].setFather(1);
     nodeList[3].setFather(0);
+    nodeList[4].setFather(3);
+    nodeList[5].setFather(3);
 
-    nodeList[2].addNext('B', 3);
+    nodeList[0].addNext('A', 1);
+    nodeList[0].addNext('B', 3);
+    nodeList[1].addNext('A', 2);
+    nodeList[1].addNext('A', 4);
+    nodeList[2].addNext('B', 4);
+    nodeList[3].addNext('B', 5);
+    nodeList[4].addNext('B', 5);
 
     /*
     showOne(nodeList[0].getNodePosition("top"));
