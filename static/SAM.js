@@ -15,14 +15,15 @@ var app = new PIXI.Application(
 document.body.appendChild(app.view);
 
 
-function textFactory(rawString, defaultAlpha) {
+function textFactory(rawString, activateCallBack, deactivateCallBack) {
     function activate(){
+        this.defaultAlpha = this.alpha;
         this.alpha = 1;
-        //show arrow
+        activateCallBack(rawString.length);
     }
     function deactivate(){
         this.alpha = this.defaultAlpha;
-        //hide arrow
+        deactivateCallBack();
     }
     function highLight(start, end) {
         //show self
@@ -37,7 +38,6 @@ function textFactory(rawString, defaultAlpha) {
     );
 
     text.interactive = true;
-    text.alpha = text.defaultAlpha = defaultAlpha;
     text
         .on('pointerover', activate)
         .on('pointerout', deactivate);
@@ -74,31 +74,28 @@ function lineFactory(stPoint, edPoint, lineColor) {
 
 
 function arrowFactory(startPoint, endPoint){
-
-    function update(startPoint, endPoint){
-        //update start position
-        //update end position
-    }
-    function activate(){
-        //show self
-    }
-    function deactivate(){
-        //hide self
-    }
-}
-
-function backLinkFactory(startPoint, endPoint) {
-    var line = lineFactory(startPoint, endPoint, 0x000000);
-    line.activate = function(){
+    var tempArrow = lineFactory(startPoint, endPoint, 0xffffff);
+    tempArrow.activate = function(){
         this.alpha = 1;
     };
-    line.deactivate = function(){
+    tempArrow.deactivate = function(){
         this.alpha = 0;
     };
-    return line;
+    return tempArrow;
 }
 
-function nodeFactory(minLen, maxLen, nodeStr) {
+function backEdgeFactory(startPoint, endPoint) {
+    var backEdge = lineFactory(startPoint, endPoint, 0x000000);
+    backEdge.activate = function(){
+        this.alpha = 1;
+    };
+    backEdge.deactivate = function(){
+        this.alpha = 0;
+    };
+    return backEdge;
+}
+
+function nodeFactory(id, minLen, maxLen, nodeText) {
     function onDragStart(event) {
         this.data = event.data;
         this.alpha = 0.8;
@@ -109,8 +106,12 @@ function nodeFactory(minLen, maxLen, nodeStr) {
             var new_position = this.data.getLocalPosition(this.parent);
             this.x = new_position.x;
             this.y = new_position.y;
-            if (this.father){
+            if (typeof(this.father) !== "undefined"){
                 this._refreshFather();
+            }
+            this._refreshSon();
+            if (typeof(this.currentText) !== "undefined") {
+                this._refreshNext(this.currentText);
             }
         }
     }
@@ -134,16 +135,59 @@ function nodeFactory(minLen, maxLen, nodeStr) {
         graphics.drawPolygon(trapesoid);
         return graphics;
     }
-
     var samNode = new PIXI.Sprite(genGraphics().generateTexture());
+
+    samNode.next = new Map();
+    samNode.addNext = function (key, nextId) {
+        var arrow = arrowFactory(
+            new PIXI.Point(0, 0),
+            new PIXI.Point(0, 0)
+        );
+        //arrow.deactivate();
+        this.next[key] = {
+            "nextId": nextId,
+            "arrow": arrow
+        };
+        samNode.addChild(arrow);
+    };
+    samNode._refreshNext = function (rank) {
+        var textLen = rank + minLen;
+        for (var aim in samNode.next){
+            var next = samNode.next[aim];
+            var arrow = next['arrow'];
+            var id = next['nextId'];
+            arrow.setEndPoint(
+                samNode.getPosition(rank, false, false),
+                nodeList[id].getPosition(textLen + 1, true, true, -this.x, -this.y)
+            );
+            nodeList[id].activateText(textLen);
+        };
+    };
+    function activateTextCallback(textLen) {
+        var rank = textLen - minLen;
+        samNode._refreshNext(rank);
+        samNode.currentText = rank;
+        for (var aim in samNode.next){
+            var next = samNode.next[aim];
+            var arrow = next['arrow'];
+            arrow.activate();
+        }
+    }
+    function deactivateTextCallback() {
+        //this.currentText = null;
+        //todo hide arrow
+    }
+
     samNode.texts = [];
     for (i  = 1; i <= height; i++){
         var text = new textFactory(
-            nodeStr.slice(height - i),
-            (i === 1 || i === height) * 0.5
+            nodeText.slice(height - i),
+            activateTextCallback,
+            deactivateTextCallback
         );
         text.x = (height - i + 1) * unitX;
         text.y = (i - 1) * unitY;
+        text.alpha = (i === 1 || i === height) * 0.5;
         samNode.addChild(text);
         samNode.texts.push(text);
     }
@@ -156,12 +200,26 @@ function nodeFactory(minLen, maxLen, nodeStr) {
         .on('pointerupoutside', onDragEnd)
         .on('pointermove', onDragMove);
 
-    samNode.backLink = backLinkFactory(
+    samNode.activateText = function (textLen) {
+
+    };
+    samNode.deactivateText = function (textLen) {
+
+    };
+
+    samNode.backEdge = backEdgeFactory(
         new PIXI.Point(0, 0),
         new PIXI.Point(0, 0)
     );
-    samNode.backLink.deactivate();
-    samNode.addChild(samNode.backLink);
+    samNode.backEdge.deactivate();
+    samNode.addChild(samNode.backEdge);
+    samNode.sons = new Set();
+    samNode.addSon = function (sonId) {
+        this.sons.add(sonId);
+    };
+    samNode.deleteSon = function (sonId) {
+        this.sons.delete(sonId);
+    };
 
     samNode.getNodePosition = function (type, x, y) {
         x = typeof(x) === "undefined" ? 0: x + this.x;
@@ -180,22 +238,38 @@ function nodeFactory(minLen, maxLen, nodeStr) {
         }
         return null;
     };
-    samNode.getPosition = function (number, start) {
+    samNode.getPosition = function (number, begin, isRelatively, x, y) {
+        x = typeof(x) === "undefined" ? 0: x + this.x;
+        y = typeof(y) === "undefined" ? 0: y + this.y;
+
+        if (isRelatively){
+            number = Math.min(number - minLen, height);
+        }
         return new PIXI.Point(
-            this.x + (start ? height - number - 0.5: (maxLen + 1)) * unitX,
-            this.y + (0.5 + number) * unitY
+            (begin ? height - number - 0.5 : (maxLen + 1)) * unitX + x,
+            (0.5 + number) * unitY + y
         )
     };
+
     samNode.setFather = function (fatherId) {
+        if (typeof(this.father) !== 'undefined'){
+            nodeList[this.father].deleteSon(id);
+        }
         this.father = fatherId;
+        nodeList[fatherId].addSon(id);
         this._refreshFather();
-        this.backLink.activate();
+        this.backEdge.activate();
     };
     samNode._refreshFather = function () {
-        this.backLink.setEndPoint(
+        this.backEdge.setEndPoint(
             this.getNodePosition("top"),
             nodeList[this.father].getNodePosition("down", -this.x, -this.y)
         );
+    };
+    samNode._refreshSon = function () {
+        this.sons.forEach(function (sonId) {
+            nodeList[sonId]._refreshFather();
+        })
     };
     samNode.resize = function () {
         //todo
@@ -204,18 +278,6 @@ function nodeFactory(minLen, maxLen, nodeStr) {
 }
 
 function test() {
-
-    nodeList[0] = nodeFactory(3, 6, "AQWDRA");
-    nodeList[0].x = unitX * 4;
-    nodeList[0].y = unitY * 4;
-
-    nodeList[1] = nodeFactory(5, 6, "QWDRAB");
-    nodeList[1].x = unitX * 10;
-    nodeList[1].y = unitY * 10;
-
-    for (var i = 0; i < 2; i++)
-        app.stage.addChild(nodeList[i]);
-
     function showOne(position) {
         var graphics = new PIXI.Graphics();
         graphics.beginFill(0X000000, 1);
@@ -232,8 +294,26 @@ function test() {
         graphics.y = position.y - edgeLen / 2;
         app.stage.addChild(graphics);
     }
+    sampleNode = [
+        [0, 0, '', 13, 8],
+        [1, 1, 'A', 10, 10],
+        [2, 2, 'AA', 9, 12],
+        [1, 3, 'AAB', 13, 10]
+    ];
 
-    nodeList[0].setFather(1);
+    for (var i = 0; i < sampleNode.length; i++){
+        var param = sampleNode[i];
+        nodeList[i] = nodeFactory(i, param[0], param[1], param[2]);
+        nodeList[i].x = unitX * param[3];
+        nodeList[i].y = unitY * param[4];
+        app.stage.addChild(nodeList[i]);
+    }
+
+    nodeList[1].setFather(0);
+    nodeList[2].setFather(1);
+    nodeList[3].setFather(0);
+
+    nodeList[2].addNext('B', 3);
 
     /*
     showOne(nodeList[0].getNodePosition("top"));
