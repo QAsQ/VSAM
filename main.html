@@ -13,7 +13,7 @@
     <a class="item">VSAM</a>
     <div class="item">
         <div class="ui action input">
-            <input type="text" placeholder="string">
+            <input type="text" placeholder="string or char">
             <button class="ui icon button">
                 <i class="fitted plus link icon"> </i>
             </button>
@@ -26,19 +26,19 @@
     </div>
     <div class="item">
         <div class="ui action input">
-            <input type="text" placeholder="string">
-            <button class="ui icon button">
+            <input id="match_input" type="text" placeholder="string">
+            <button class="ui icon button" onclick="genMatchProcess()">
                 <i class="chevron down link icon"> </i>
             </button>
         </div>
     </div>
     <div class="item">
-        <button class="ui icon button">
+        <button class="ui icon button" onclick="next()">
             <i class="play icon"> </i>
         </button>
     </div>
     <div class="item">
-        <button class="ui icon button">
+        <button class="ui icon button" onclick="forward()">
             <i class="forward icon"> </i>
         </button>
     </div>

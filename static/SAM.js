@@ -1,61 +1,99 @@
 var gWidth = 2080;
 var gHeight = 850;
-var gFontFamily = 'Consolas, Monaco, monospace';
-var gLineWidth = 2;
-var unitX = 14;
-var unitY = 26;
+var gLineWidth = 3;
 var nodeList = [];
+
+var gBackGroundColor = 0Xffffff;
+var gNodeColor = 0x00B5AD ;
+var gBackEdgeColor = 0x006f67;
+var gTextColor = 0xffffff;
+var gTextHighlightEndColor = 0x004545;
+var gArrowColor = gTextHighlightEndColor;
+
+var gTextHighlightFullColor = 0x32CD32;
+
+var gFontFamily = 'Consolas, Monaco, monospace';
+var gFontSize = 45;
+
+var testText = new PIXI.Text(
+    'A',
+    new PIXI.TextStyle({
+        fontFamily: gFontFamily,
+        fill: gTextColor,
+        fontSize: gFontSize
+    })
+);
+
+var unitX = testText.width;
+var unitY = testText.height + 3;
 
 var app = new PIXI.Application(
     gWidth,
     gHeight,
-    { backgroundColor: 0xffffff}
+    { backgroundColor: gBackGroundColor}
 );
 
 document.body.appendChild(app.view);
 
-
-function textFactory(rawString, activateCallBack, deactivateCallBack) {
+function textFactory(rawString, defaultAlpha, activateCallBack, deactivateCallBack) {
+    function subTextFactory(str, color) {
+        var text = new PIXI.Text(
+            str,
+            new PIXI.TextStyle({
+                fontFamily: gFontFamily,
+                fill: color,
+                fontSize: gFontSize
+            })
+        );
+        text.alpha = 0;
+        return text;
+    }
     function activate(){
-        this.defaultAlpha = this.alpha;
         this.alpha = 1;
         activateCallBack(rawString.length);
     }
     function deactivate(){
-        this.alpha = this.defaultAlpha;
-        this.defaultAlpha = undefined;
+        this.alpha = defaultAlpha;
         deactivateCallBack(rawString.length);
     }
-    var text = new PIXI.Text(
+    var text = subTextFactory(
         rawString,
-        new PIXI.TextStyle({
-            fontFamily: gFontFamily
-        })
+        gTextColor
     );
-    var tailText = new PIXI.Text(
+    var fullText= subTextFactory(
+        rawString,
+        gTextHighlightFullColor
+    );
+    var tailText = subTextFactory(
         rawString[rawString.length - 1],
-        new PIXI.TextStyle({
-            fontFamily: gFontFamily,
-            fill: '#ff2433',
-            stroke: '#ff2433',
-            strokeThickness: 1
-        })
+        gTextHighlightEndColor
     );
+
     tailText.x = (rawString.length - 1) * unitX;
-    tailText.alpha = 0;
+
     text.addChild(tailText);
+    text.addChild(fullText);
     text.interactive = true;
+    text.alpha = defaultAlpha;
     text
         .on('pointerover', activate)
         .on('pointerout', deactivate);
 
-    text.highLight = function(state) {
-        if (state === "end_one"){
+    text.highlight = function(state) {
+        if (state === "show_tail"){
             tailText.alpha = 1;
             this.show();
         }
-        if (state === "clean"){
+        if (state === "hide_tail"){
             tailText.alpha = 0;
+            this.hide();
+        }
+        if (state === "show_full"){
+            fullText.alpha = 1;
+            this.show();
+        }
+        if (state === "hide_full"){
+            fullText.alpha = 0;
             this.hide();
         }
     };
@@ -99,7 +137,7 @@ function lineFactory(stPoint, edPoint, lineColor) {
 }
 
 function arrowFactory(startPoint, endPoint){
-    var tempArrow = lineFactory(startPoint, endPoint, 0xD6DaD9);
+    var tempArrow = lineFactory(startPoint, endPoint, gArrowColor);
     tempArrow.activate = function(){
         this.alpha = 1;
     };
@@ -110,7 +148,7 @@ function arrowFactory(startPoint, endPoint){
 }
 
 function backEdgeFactory(startPoint, endPoint) {
-    var backEdge = lineFactory(startPoint, endPoint, 0x000000);
+    var backEdge = lineFactory(startPoint, endPoint, gBackEdgeColor);
     backEdge.activate = function(){
         //this.alpha = 1;
     };
@@ -131,7 +169,7 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
             var new_position = this.data.getLocalPosition(this.parent);
             this.x = new_position.x;
             this.y = new_position.y;
-            if (typeof(this.father) !== "undefined"){
+            if (this.father != -1){
                 this._refreshFather();
             }
             this._refreshSon();
@@ -156,7 +194,7 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
         ]);
 
         var graphics = new PIXI.Graphics();
-        graphics.beginFill(0X00B5AD, 1);
+        graphics.beginFill(gNodeColor, 1);
         graphics.drawPolygon(trapesoid);
         return graphics;
     }
@@ -169,63 +207,61 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
             new PIXI.Point(0, 0)
         );
         arrow.deactivate();
-        this.next[key] = {
-            "nextId": nextId,
-            "arrow": arrow
-        };
+        this.next.set(
+            key,
+            {
+                "nextId": nextId,
+                "arrow": arrow
+        });
         samNode.addChild(arrow);
     };
     samNode._refreshNext = function (rank) {
         var textLen = rank + minLen;
-        for (var aim in samNode.next){
-            var next = samNode.next[aim];
+        samNode.next.forEach(function (next, aim) {
             var arrow = next['arrow'];
             var nextId = next['nextId'];
             arrow.setEndPoint(
                 samNode.getPosition(rank, false, false),
-                nodeList[nextId].getPosition(textLen + 1, true, true, -this.x, -this.y)
+                nodeList[nextId].getPosition(textLen + 1, true, true, -samNode.x, -samNode.y)
             );
-        }
+        });
     };
     function activateTextCallback(textLen) {
         var rank = textLen - minLen;
         samNode._refreshNext(rank);
         samNode.currentText = rank;
-        for (var aim in samNode.next){
-            var next = samNode.next[aim];
+        samNode.next.forEach(function (next, aim) {
             var nextId = next['nextId'];
             var arrow = next['arrow'];
             arrow.activate();
             nodeList[nextId].activateText(textLen);
-        }
+        });
     }
     function deactivateTextCallback(textLen) {
         this.currentText = undefined;
-        for (var aim in samNode.next){
-            var next = samNode.next[aim];
+        samNode.next.forEach(function (next, aim) {
             var nextId = next['nextId'];
             var arrow = next['arrow'];
             arrow.deactivate();
             nodeList[nextId].deactivateText(textLen);
-        }
+        });
     }
 
     samNode.texts = [];
     for (i  = 1; i <= height; i++){
         var text = new textFactory(
             nodeText.slice(height - i),
+            (i === 1 || i === height) * 0.9,
             activateTextCallback,
             deactivateTextCallback
         );
         text.x = (height - i + 1) * unitX;
         text.y = (i - 1) * unitY;
-        text.alpha = (i === 1 || i === height) * 0.8;
         samNode.addChild(text);
         samNode.texts.push(text);
     }
 
     samNode.interactive = true;
-    samNode.alpha = 0.9;
     samNode
         .on('pointerdown', onDragStart)
         .on('pointerup', onDragEnd)
@@ -234,12 +270,12 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
 
     samNode.activateText = function (textLen) {
         var rank = Math.min(textLen - minLen + 1, height - 1);
-        samNode.texts[rank].highLight("end_one");
+        samNode.texts[rank].highlight("show_tail");
     };
 
     samNode.deactivateText = function (textLen) {
         var rank = Math.min(textLen - minLen + 1, height - 1);
-        samNode.texts[rank].highLight("clean");
+        samNode.texts[rank].highlight("hide_tail");
     };
 
     samNode.backEdge = backEdgeFactory(
@@ -286,8 +322,9 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
         )
     };
 
+    samNode.father = -1;
     samNode.setFather = function (fatherId) {
-        if (typeof(this.father) !== 'undefined'){
+        if (this.father != -1){
             nodeList[this.father].deleteSon(id);
         }
         this.father = fatherId;
@@ -309,6 +346,7 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
     samNode.resize = function () {
         //todo
     };
+    samNode.maxLen = maxLen;
     return samNode;
 }
 
@@ -341,8 +379,8 @@ function test() {
     for (var i = 0; i < sampleNode.length; i++){
         var param = sampleNode[i];
         nodeList[i] = nodeFactory(i, param[0], param[1], param[2]);
-        nodeList[i].x = unitX * param[3];
-        nodeList[i].y = unitY * param[4];
+        nodeList[i].x = unitX * (param[3] - 8);
+        nodeList[i].y = unitY * (param[4] - 8);
         app.stage.addChild(nodeList[i]);
     }
 
@@ -373,3 +411,154 @@ function test() {
 
 test();
 
+function matchProcessFactory(matchText) {
+    var matchProcess = {
+        full_str: matchText,
+        st: 0,
+        cur: 0,
+        current_match: "",
+        activity_text: [],
+        activity_arrow: [],
+        activity_node: [],
+        next: function () {
+            var st = 0, lens = 0;
+            while (this.cur < matchText.length){
+                current_char = matchText[this.cur];
+                if (nodeList[st].next.has(current_char)) {
+                    var next = nodeList[st].next.get(current_char);
+                    st = next["nextId"];
+                    lens+=1;
+                }
+                else {
+                    while(st != -1 && !nodeList[st].next.has(current_char))
+                        st = nodeList[st].father;
+                    if (st == -1)
+                        st = 0, lens = 0;
+                    else
+                        lens = nodeList[st].maxLen, st = nodeList[st].next[current_char]['nextId']
+                    console.log(lens);
+                }
+                this.cur++;
+            }
+        }
+            /*
+            void run(char *arr){
+                int st = root,lens = 0;
+                for(int i = 0;arr[i];i++){
+                    int x = arr[i] - 'a';
+                    if(nex[st][x] != -1){
+                        st = nex[st][x];
+                        lens++;
+                    }
+                    else{
+                        while(st != 1 && nex[st][x] == -1)
+                            st = fa[st];
+                        if(st == -1)
+                            st = root, lens = 0;
+                        else
+                            lens = len[st]+1, st = nex[st][x];
+                    }
+                }
+            }
+            */
+    };
+
+    return matchProcess;
+}
+
+function genMatchProcess() {
+    forward();
+    matchText = $("#match_input").val();
+    $("#match_input").val("");
+    process = matchProcessFactory(matchText);
+    process.next();
+}
+
+function appendProcessFactory(appendText) {
+    var appendProcess = {
+        next: function () {
+
+        }
+    };
+
+    return appendProcess;
+}
+function genAppendProcess(appendText) {
+    forward();
+    process = appendProcessFactory(appendText);
+}
+
+function next() {
+    if (typeof(process) !== "undefined")
+        process.next();
+}
+
+function forward() {
+    if (typeof(process) !== "undefined")
+        while(process.next())
+            process.next();
+}
+
+
+/*
+struct Sam{
+    void run(char *arr){
+        int st = root,lens = 0;
+        for(int i = 0;arr[i];i++){
+            int x = arr[i] - 'a';
+            if(nex[st][x] != -1){
+                st = nex[st][x];
+                lens++;
+            }
+            else{
+                while(st != -1 && nex[st][x] == -1)
+                    st = fa[st];
+                if(st == -1)
+                    st = root, lens = 0;
+                else
+                    lens = len[st]+1, st = nex[st][x];
+            }
+            //update maxlen
+        }
+    }
+    int len[maxn*2],fa[maxn*2],nex[maxn*2][mlen];
+    int _cnt,root,omg;
+    int newNode(int L = 0){
+        len[_cnt] = L;
+        memset(nex[_cnt],fa[_cnt] = -1,sizeof(nex[_cnt]));
+        return _cnt++;
+    }
+    void init(){
+        _cnt = 0;
+        root = omg = newNode();
+    }
+    void extend(int x){
+        int ox = newNode(len[omg]+1);
+        while(omg != -1 && nex[omg][x] == -1){
+            nex[omg][x] = ox;
+            omg = fa[omg];
+        }
+        if(omg == -1) fa[ox] = root;
+        else{
+            int omgx = nex[omg][x];
+            if(len[omgx] == len[omg]+1) fa[ox] = omgx;
+            else{
+                int mgx = newNode(len[omg]+1);
+                for(int i=0;i<mlen;i++)
+                nex[mgx][i] = nex[omgx][i];
+                fa[mgx] = fa[omgx];
+                fa[omgx] = fa[ox] = mgx;
+                while(omg != -1 && nex[omg][x] == omgx)
+                    nex[omg][x] = mgx,omg = fa[omg];
+            }
+        }
+        omg = ox;
+    }
+    void build(char *arr){
+        init();
+        for(int i=0;arr[i];i++){
+            extend(arr[i] - 'a');
+        }
+    }
+}SAM;
+ */
