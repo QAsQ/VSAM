@@ -393,7 +393,7 @@ function test() {
     nodeList[0].addNext('A', 1);
     nodeList[0].addNext('B', 3);
     nodeList[1].addNext('A', 2);
-    nodeList[1].addNext('A', 4);
+    nodeList[1].addNext('B', 4);
     nodeList[2].addNext('B', 4);
     nodeList[3].addNext('B', 5);
     nodeList[4].addNext('B', 5);
@@ -430,39 +430,18 @@ function matchProcessFactory(matchText) {
                     lens+=1;
                 }
                 else {
-                    while(st != -1 && !nodeList[st].next.has(current_char))
+                    while(st != -1 && !nodeList[st].next.has(current_char)){
                         st = nodeList[st].father;
-                    if (st == -1)
+                    }
+                    if (st === -1)
                         st = 0, lens = 0;
                     else
-                        lens = nodeList[st].maxLen, st = nodeList[st].next[current_char]['nextId']
-                    console.log(lens);
+                        lens = nodeList[st].maxLen + 1, st = nodeList[st].next.get(current_char)['nextId'];
                 }
                 this.cur++;
             }
         }
-            /*
-            void run(char *arr){
-                int st = root,lens = 0;
-                for(int i = 0;arr[i];i++){
-                    int x = arr[i] - 'a';
-                    if(nex[st][x] != -1){
-                        st = nex[st][x];
-                        lens++;
-                    }
-                    else{
-                        while(st != 1 && nex[st][x] == -1)
-                            st = fa[st];
-                        if(st == -1)
-                            st = root, lens = 0;
-                        else
-                            lens = len[st]+1, st = nex[st][x];
-                    }
-                }
-            }
-            */
     };
-
     return matchProcess;
 }
 
@@ -470,7 +449,7 @@ function genMatchProcess() {
     forward();
     matchText = $("#match_input").val();
     $("#match_input").val("");
-    process = matchProcessFactory(matchText);
+    process = matchProcessFactory("");
     process.next();
 }
 
@@ -560,5 +539,5 @@ struct Sam{
             extend(arr[i] - 'a');
         }
     }
-}SAM;
+};
  */
