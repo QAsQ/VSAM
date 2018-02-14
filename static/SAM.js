@@ -5,18 +5,16 @@ var nodeList = [];
 
 var gBackGroundColor = 0Xffffff;
 "#00B5AD"
-var gNodeColor = 0x00B5AD ;
-var gBackEdgeColor = 0x006f67;
-var gTextColor = 0xffffff;
-var gTextHighlightEndColor = 0x004545;
-var gArrowColor = gTextHighlightEndColor;
+var gNodeNormalColor = 0x00B5AD ;
+var gBackedgeNormalColor = 0x006f67;
+var gTextNormalColor = 0xffffff;
+var gTextNormalEndColor = 0x004545;
+var gNextNormalColor = gTextNormalEndColor;
 
-"#32CD32"
-var gTextHighlightFullColor = 0x32CD32;
-var gMatchHighlightNextColor = gTextHighlightFullColor;
+var gNodeMatchColor= 0x004545; "#004545"
+var gTextMatchColor = 0x32CD32; "#32CD32"
+var gNextMatchColor = gTextMatchColor;
 
-"#004545"
-var gMatchHighlightColor= 0x004545;
 
 var gFontFamily = 'Consolas, Monaco, monospace';
 var gFontSize = 45;
@@ -25,7 +23,7 @@ var testText = new PIXI.Text(
     'A',
     new PIXI.TextStyle({
         fontFamily: gFontFamily,
-        fill: gTextColor,
+        fill: gTextNormalColor,
         fontSize: gFontSize
     })
 );
@@ -56,16 +54,16 @@ function textFactory(rawString, defaultAlpha, activateCallBack, deactivateCallBa
     }
     var normalText = subTextFactory(
         rawString,
-        gTextColor
+        gTextNormalColor
     );
     normalText.alpha = defaultAlpha;
-    var fullText= subTextFactory(
+    var matchText= subTextFactory(
         rawString,
-        gTextHighlightFullColor
+        gTextMatchColor
     );
     var tailText = subTextFactory(
         rawString[rawString.length - 1],
-        gTextHighlightEndColor
+        gTextNormalEndColor
     );
     tailText.x = (rawString.length - 1) * unitX;
 
@@ -77,7 +75,7 @@ function textFactory(rawString, defaultAlpha, activateCallBack, deactivateCallBa
     var text = new PIXI.Container();
     text.addChild(normalText);
     text.addChild(tailText);
-    text.addChild(fullText);
+    text.addChild(matchText);
 
     text.highlight = function(state) {
         if (state === "show_tail"){
@@ -88,13 +86,14 @@ function textFactory(rawString, defaultAlpha, activateCallBack, deactivateCallBa
             tailText.alpha = 0;
             this.hide();
         }
-        if (state === "show_full"){
-            fullText.alpha = 1;
+        if (state === "show_match"){
+            matchText.alpha = 1;
         }
-        if (state === "hide_full"){
-            fullText.alpha = 0;
+        if (state === "hide_match"){
+            matchText.alpha = 0;
         }
     };
+
     text.show = function () {
         normalText.alpha = 1;
     };
@@ -119,13 +118,13 @@ function lineFactory(stPoint, edPoint, lineColor, crude) {
     var normalLine = new PIXI.Sprite(graphics.generateTexture());
     normalLine.scale.y = gLineWidth + crude;
 
-    var highlightLine = new PIXI.Sprite(graphics.generateTexture());
-    highlightLine.alpha = 0;
-    highlightLine.scale.y = gLineWidth + 2;
+    var crudeLine = new PIXI.Sprite(graphics.generateTexture());
+    crudeLine.alpha = 0;
+    crudeLine.scale.y = gLineWidth + 2;
 
     var line =  new PIXI.Container();
     line.addChild(normalLine);
-    line.addChild(highlightLine);
+    line.addChild(crudeLine);
 
     line._setEndPoint = function (startPoint, endPoint, oneLine) {
         var angle = Math.atan2(endPoint.y - startPoint.y, endPoint.x - startPoint.x);
@@ -145,13 +144,13 @@ function lineFactory(stPoint, edPoint, lineColor, crude) {
     };
     line.setEndPoint = function(startPoint, endPoint){
         this._setEndPoint(startPoint, endPoint, normalLine);
-        this._setEndPoint(startPoint, endPoint, highlightLine);
+        this._setEndPoint(startPoint, endPoint, crudeLine);
     };
     line.highlight = function () {
-        highlightLine.alpha = 1;
+        crudeLine.alpha = 1;
     };
     line.undoHighlight = function () {
-        highlightLine.alpha = 0;
+        crudeLine.alpha = 0;
     };
     line.setEndPoint(stPoint, edPoint);
 
@@ -159,22 +158,22 @@ function lineFactory(stPoint, edPoint, lineColor, crude) {
 }
 
 function arrowFactory(startPoint, endPoint){
-    var tempArrow = lineFactory(startPoint, endPoint, gArrowColor, 0);
-    tempArrow.activate = function(){
+    var tempArrow = lineFactory(startPoint, endPoint, gNextNormalColor, 0);
+    tempArrow.show = function(){
         this.alpha = 1;
     };
-    tempArrow.deactivate = function(){
+    tempArrow.hide = function(){
         this.alpha = 0;
     };
     return tempArrow;
 }
 
 function backEdgeFactory(startPoint, endPoint) {
-    var backEdge = lineFactory(startPoint, endPoint, gBackEdgeColor, 0);
-    backEdge.activate = function(){
+    var backEdge = lineFactory(startPoint, endPoint, gBackedgeNormalColor, 0);
+    backEdge.show = function(){
         //this.alpha = 1;
     };
-    backEdge.deactivate = function(){
+    backEdge.hide = function(){
         //this.alpha = 0;
     };
     return backEdge;
@@ -223,14 +222,14 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
 
     var samNode = new PIXI.Container();
 
-    var normalNode = new PIXI.Sprite(genGraphics(gNodeColor).generateTexture());
-    var highlightNode = new PIXI.Sprite(genGraphics(gMatchHighlightColor).generateTexture());
+    var normalNode = new PIXI.Sprite(genGraphics(gNodeNormalColor).generateTexture());
+    var matchNode = new PIXI.Sprite(genGraphics(gNodeMatchColor).generateTexture());
 
     normalNode.alpha = 1;
-    highlightNode.alpha = 0;
+    matchNode.alpha = 0;
 
     samNode.addChild(normalNode);
-    samNode.addChild(highlightNode);
+    samNode.addChild(matchNode);
 
     samNode.next = new Map();
     samNode.addNext = function (key, nextId) {
@@ -238,7 +237,7 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
             new PIXI.Point(0, 0),
             new PIXI.Point(0, 0)
         );
-        arrow.deactivate();
+        arrow.hide();
         this.next.set(
             key,
             {
@@ -257,27 +256,24 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
     };
     samNode._refreshNext = function (rank) {
         samNode.next.forEach(function (next, aim) {
-            var arrow = next['arrow'];
-            var nextId = next['nextId'];
-            samNode._refreshOneNext(rank, nextId, arrow);
+            samNode._refreshOneNext(rank, next['nextId'], next['arrow']);
         });
     };
-    var highlightNext = lineFactory(
+    var matchNext = lineFactory(
         new PIXI.Point(0, 0),
         new PIXI.Point(0, 0),
-        gMatchHighlightNextColor,
+        gNextMatchColor,
         2
     );
-    samNode.activateNext = function (targetId, textLen) {
-        this._refreshOneNext(textLen - minLen, targetId, highlightNext);
-        highlightNext.alpha = 1;
+    samNode.showMatchNext = function (targetId, textLen) {
+        this._refreshOneNext(textLen - minLen, targetId, matchNext);
+        matchNext.alpha = 1;
     };
-    samNode.deactivateNext = function () {
-        highlightNext.alpha = 0;
+    samNode.hideMatchNext = function () {
+        matchNext.alpha = 0;
     };
-    samNode.deactivateNext();
-
-    samNode.addChild(highlightNext);
+    samNode.hideMatchNext();
+    samNode.addChild(matchNext);
 
     function activateTextCallback(textLen) {
         var rank = textLen - minLen;
@@ -286,7 +282,7 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
         samNode.next.forEach(function (next, aim) {
             var nextId = next['nextId'];
             var arrow = next['arrow'];
-            arrow.activate();
+            arrow.show();
             nodeList[nextId].activateText(textLen);
         });
     }
@@ -295,7 +291,7 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
         samNode.next.forEach(function (next, aim) {
             var nextId = next['nextId'];
             var arrow = next['arrow'];
-            arrow.deactivate();
+            arrow.hide();
             nodeList[nextId].deactivateText(textLen);
         });
     }
@@ -330,20 +326,20 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
         var rank = Math.min(textLen - minLen + 1, height - 1);
         samNode.texts[rank].highlight("hide_tail");
     };
-    samNode.highlightText = function (textLen) {
+    samNode.showMatchText = function (textLen) {
         var rank = Math.min(textLen - minLen, height - 1);
-        samNode.texts[rank].highlight("show_full");
+        samNode.texts[rank].highlight("show_match");
     };
-    samNode.undoHighlightText = function (textLen) {
+    samNode.hideMatchText = function (textLen) {
         var rank = Math.min(textLen - minLen, height - 1);
-        samNode.texts[rank].highlight("hide_full");
+        samNode.texts[rank].highlight("hide_match");
     };
 
     samNode.backEdge = backEdgeFactory(
         new PIXI.Point(0, 0),
         new PIXI.Point(0, 0)
     );
-    samNode.backEdge.deactivate();
+    samNode.backEdge.hide();
     samNode.addChild(samNode.backEdge);
     samNode.activateBackedge = function () {
         samNode.backEdge.highlight();
@@ -397,7 +393,7 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
         this.father = fatherId;
         nodeList[fatherId].addSon(id);
         this._refreshFather();
-        this.backEdge.activate();
+        this.backEdge.show();
     };
     samNode._refreshFather = function () {
         this.backEdge.setEndPoint(
@@ -410,12 +406,12 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
             nodeList[sonId]._refreshFather();
         })
     };
-    samNode.activate = function () {
+    samNode.showMatchNode = function () {
         normalNode.alpha = 0;
-        highlightNode.alpha = 1;
+        matchNode.alpha = 1;
     };
-    samNode.deactivate = function () {
-        highlightNode.alpha = 0;
+    samNode.hideMatchNode = function () {
+        matchNode.alpha = 0;
         normalNode.alpha = 1;
     };
     samNode.resize = function () {
@@ -495,14 +491,14 @@ function matchProcessFactory(matchText) {
         current_match:  "",
         activity_element: [],
         activate_node: function(nodeId){
-            nodeList[nodeId].activate();
+            nodeList[nodeId].showMatchNode();
             this.activity_element.push({
                 type: "node",
                 id: nodeId
             })
         },
         activate_next: function(nodeId, targetId, textLen){
-            nodeList[nodeId].activateNext(targetId, textLen);
+            nodeList[nodeId].showMatchNext(targetId, textLen);
             this.activity_element.push({
                 type: "next",
                 id: nodeId
@@ -516,7 +512,7 @@ function matchProcessFactory(matchText) {
             })
         },
         activate_text: function (nodeId, textLength) {
-            nodeList[nodeId].highlightText(textLength);
+            nodeList[nodeId].showMatchText(textLength);
             this.activity_element.push({
                 type: "text",
                 id: nodeId,
@@ -527,13 +523,13 @@ function matchProcessFactory(matchText) {
         deactivate_all: function () {
             this.activity_element.forEach(function (element, id, array) {
                 if (element.type === "node")
-                    nodeList[element.id].deactivate();
+                    nodeList[element.id].hideMatchNode();
                 if (element.type === "next")
-                    nodeList[element.id].deactivateNext();
+                    nodeList[element.id].hideMatchNext();
                 if (element.type === "backedge")
                     nodeList[element.id].deactivateBackedge();
                 if (element.type === "text")
-                    nodeList[element.id].undoHighlightText(element.length);
+                    nodeList[element.id].hideMatchText(element.length);
             });
             this.activity_element = [];
         },
