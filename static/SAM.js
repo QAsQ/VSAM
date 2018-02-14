@@ -11,10 +11,12 @@ var gTextColor = 0xffffff;
 var gTextHighlightEndColor = 0x004545;
 var gArrowColor = gTextHighlightEndColor;
 
+"#32CD32"
 var gTextHighlightFullColor = 0x32CD32;
+var gMatchHighlightNextColor = gTextHighlightFullColor;
 
-"#016936"
-var gMatchHighlightColor= 0x016936;
+"#004545"
+var gMatchHighlightColor= 0x004545;
 
 var gFontFamily = 'Consolas, Monaco, monospace';
 var gFontSize = 45;
@@ -52,18 +54,11 @@ function textFactory(rawString, defaultAlpha, activateCallBack, deactivateCallBa
         text.alpha = 0;
         return text;
     }
-    function activate(){
-        this.alpha = 1;
-        activateCallBack(rawString.length);
-    }
-    function deactivate(){
-        this.alpha = defaultAlpha;
-        deactivateCallBack(rawString.length);
-    }
-    var text = subTextFactory(
+    var normalText = subTextFactory(
         rawString,
         gTextColor
     );
+    normalText.alpha = defaultAlpha;
     var fullText= subTextFactory(
         rawString,
         gTextHighlightFullColor
@@ -72,16 +67,17 @@ function textFactory(rawString, defaultAlpha, activateCallBack, deactivateCallBa
         rawString[rawString.length - 1],
         gTextHighlightEndColor
     );
-
     tailText.x = (rawString.length - 1) * unitX;
 
-    text.addChild(tailText);
-    text.addChild(fullText);
-    text.interactive = true;
-    text.alpha = defaultAlpha;
-    text
+    normalText.interactive = true;
+    normalText
         .on('pointerover', activate)
         .on('pointerout', deactivate);
+
+    var text = new PIXI.Container();
+    text.addChild(normalText);
+    text.addChild(tailText);
+    text.addChild(fullText);
 
     text.highlight = function(state) {
         if (state === "show_tail"){
@@ -100,27 +96,42 @@ function textFactory(rawString, defaultAlpha, activateCallBack, deactivateCallBa
         }
     };
     text.show = function () {
-        this.defaultAlpha = this.alpha;
-        this.alpha = 1;
+        normalText.alpha = 1;
     };
     text.hide = function () {
-        this.alpha = this.defaultAlpha;
-        this.defaultAlpha = undefined;
+        normalText.alpha = defaultAlpha;
     };
+    function activate(){
+        text.show();
+        activateCallBack(rawString.length);
+    }
+    function deactivate(){
+        text.hide();
+        deactivateCallBack(rawString.length);
+    }
     return text;
 }
 
-function lineFactory(stPoint, edPoint, lineColor) {
+function lineFactory(stPoint, edPoint, lineColor, crude) {
     var graphics = new PIXI.Graphics();
     graphics.beginFill(lineColor, 1);
     graphics.drawRect(0, 0, 1, 1);
-    var line = new PIXI.Sprite(graphics.generateTexture());
+    var normalLine = new PIXI.Sprite(graphics.generateTexture());
+    normalLine.scale.y = gLineWidth + crude;
 
-    line.setEndPoint = function (startPoint, endPoint) {
+    var highlightLine = new PIXI.Sprite(graphics.generateTexture());
+    highlightLine.alpha = 0;
+    highlightLine.scale.y = gLineWidth + 2;
+
+    var line =  new PIXI.Container();
+    line.addChild(normalLine);
+    line.addChild(highlightLine);
+
+    line._setEndPoint = function (startPoint, endPoint, oneLine) {
         var angle = Math.atan2(endPoint.y - startPoint.y, endPoint.x - startPoint.x);
 
-        line.x = startPoint.x;
-        line.y = startPoint.y;
+        oneLine.x = startPoint.x;
+        oneLine.y = startPoint.y;
         function distance(pointA, pointB) {
             return Math.sqrt(
                 (pointA.x - pointB.x)
@@ -129,9 +140,18 @@ function lineFactory(stPoint, edPoint, lineColor) {
                 * (pointA.y - pointB.y)
             )
         }
-        line.scale.x = distance(startPoint, endPoint);
-        line.scale.y = gLineWidth;
-        line.rotation = angle;
+        oneLine.scale.x = distance(startPoint, endPoint);
+        oneLine.rotation = angle;
+    };
+    line.setEndPoint = function(startPoint, endPoint){
+        this._setEndPoint(startPoint, endPoint, normalLine);
+        this._setEndPoint(startPoint, endPoint, highlightLine);
+    };
+    line.highlight = function () {
+        highlightLine.alpha = 1;
+    };
+    line.undoHighlight = function () {
+        highlightLine.alpha = 0;
     };
     line.setEndPoint(stPoint, edPoint);
 
@@ -139,7 +159,7 @@ function lineFactory(stPoint, edPoint, lineColor) {
 }
 
 function arrowFactory(startPoint, endPoint){
-    var tempArrow = lineFactory(startPoint, endPoint, gArrowColor);
+    var tempArrow = lineFactory(startPoint, endPoint, gArrowColor, 0);
     tempArrow.activate = function(){
         this.alpha = 1;
     };
@@ -150,7 +170,7 @@ function arrowFactory(startPoint, endPoint){
 }
 
 function backEdgeFactory(startPoint, endPoint) {
-    var backEdge = lineFactory(startPoint, endPoint, gBackEdgeColor);
+    var backEdge = lineFactory(startPoint, endPoint, gBackEdgeColor, 0);
     backEdge.activate = function(){
         //this.alpha = 1;
     };
@@ -224,20 +244,41 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
             {
                 "nextId": nextId,
                 "arrow": arrow
-        });
+            }
+        );
         samNode.addChild(arrow);
     };
-    samNode._refreshNext = function (rank) {
+    samNode._refreshOneNext = function (rank, targetId, arrow) {
         var textLen = rank + minLen;
+        arrow.setEndPoint(
+            samNode.getPosition(rank, false, false),
+            nodeList[targetId].getPosition(textLen + 1, true, true, -samNode.x, -samNode.y)
+        )
+    };
+    samNode._refreshNext = function (rank) {
         samNode.next.forEach(function (next, aim) {
             var arrow = next['arrow'];
             var nextId = next['nextId'];
-            arrow.setEndPoint(
-                samNode.getPosition(rank, false, false),
-                nodeList[nextId].getPosition(textLen + 1, true, true, -samNode.x, -samNode.y)
-            );
+            samNode._refreshOneNext(rank, nextId, arrow);
         });
     };
+    var highlightNext = lineFactory(
+        new PIXI.Point(0, 0),
+        new PIXI.Point(0, 0),
+        gMatchHighlightNextColor,
+        2
+    );
+    samNode.activateNext = function (targetId, textLen) {
+        this._refreshOneNext(textLen - minLen, targetId, highlightNext);
+        highlightNext.alpha = 1;
+    };
+    samNode.deactivateNext = function () {
+        highlightNext.alpha = 0;
+    };
+    samNode.deactivateNext();
+
+    samNode.addChild(highlightNext);
+
     function activateTextCallback(textLen) {
         var rank = textLen - minLen;
         samNode._refreshNext(rank);
@@ -289,6 +330,14 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
         var rank = Math.min(textLen - minLen + 1, height - 1);
         samNode.texts[rank].highlight("hide_tail");
     };
+    samNode.highlightText = function (textLen) {
+        var rank = Math.min(textLen - minLen, height - 1);
+        samNode.texts[rank].highlight("show_full");
+    };
+    samNode.undoHighlightText = function (textLen) {
+        var rank = Math.min(textLen - minLen, height - 1);
+        samNode.texts[rank].highlight("hide_full");
+    };
 
     samNode.backEdge = backEdgeFactory(
         new PIXI.Point(0, 0),
@@ -296,6 +345,12 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
     );
     samNode.backEdge.deactivate();
     samNode.addChild(samNode.backEdge);
+    samNode.activateBackedge = function () {
+        samNode.backEdge.highlight();
+    };
+    samNode.deactivateBackedge = function () {
+        samNode.backEdge.undoHighlight();
+    };
     samNode.sons = new Set();
     samNode.addSon = function (sonId) {
         this.sons.add(sonId);
@@ -446,20 +501,39 @@ function matchProcessFactory(matchText) {
                 id: nodeId
             })
         },
-        activate_next: function(nodeId, key){
-            console.log("activate " + nodeId + " to " + key);
+        activate_next: function(nodeId, targetId, textLen){
+            nodeList[nodeId].activateNext(targetId, textLen);
+            this.activity_element.push({
+                type: "next",
+                id: nodeId
+            })
         },
         activate_backedge: function (nodeId) {
-            console.log("back " + nodeId);
+            nodeList[nodeId].activateBackedge();
+            this.activity_element.push({
+                type: "backedge",
+                id: nodeId
+            })
         },
-        activate_text: function () {
+        activate_text: function (nodeId, textLength) {
+            nodeList[nodeId].highlightText(textLength);
+            this.activity_element.push({
+                type: "text",
+                id: nodeId,
+                length: textLength
+            })
 
         },
         deactivate_all: function () {
             this.activity_element.forEach(function (element, id, array) {
                 if (element.type === "node")
                     nodeList[element.id].deactivate();
-                
+                if (element.type === "next")
+                    nodeList[element.id].deactivateNext();
+                if (element.type === "backedge")
+                    nodeList[element.id].deactivateBackedge();
+                if (element.type === "text")
+                    nodeList[element.id].undoHighlightText(element.length);
             });
             this.activity_element = [];
         },
@@ -473,14 +547,20 @@ function matchProcessFactory(matchText) {
 
             if (nodeList[this.current_node].next.has(current_char)){
                 this.activate_node(this.current_node);
+                this.activate_text(this.current_node, this.current_match.length);
 
                 var next = nodeList[this.current_node].next.get(current_char);
-                this.activate_next(this.current_node, current_char);
+                this.activate_next(
+                    this.current_node,
+                    next['nextId'],
+                    this.current_match.length
+                );
+                this.current_match += current_char;
 
                 this.current_node = next['nextId'];
                 this.activate_node(this.current_node);
+                this.activate_text(this.current_node, this.current_match.length);
 
-                this.current_match += current_char;
                 this.cur += 1;
             }
             else{
@@ -493,6 +573,7 @@ function matchProcessFactory(matchText) {
                 }
                 else{
                     this.activate_node(this.current_node);
+                    this.activate_text(this.current_node, this.current_match.length);
                     this.activate_backedge(this.current_node);
 
                     this.current_node = nodeList[this.current_node].father;
@@ -501,6 +582,7 @@ function matchProcessFactory(matchText) {
                     this.current_match = this.current_match.slice(
                         this.current_match.length - nodeList[this.current_node].maxLen
                     );
+                    this.activate_text(this.current_node, this.current_match.length);
                 }
             }
             console.log(this.current_match);
@@ -513,11 +595,9 @@ function genMatchProcess() {
     forward();
     matchText = $("#match_input").val();
     $("#match_input").val("");
-    process = matchProcessFactory("");
+    process = matchProcessFactory(matchText);
     process.next();
 }
-
-process = matchProcessFactory("ABBCABBA");
 
 function appendProcessFactory(appendText) {
     var appendProcess = {
