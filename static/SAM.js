@@ -4,8 +4,7 @@ var gLineWidth = 3;
 var nodeList = [];
 
 var gBackGroundColor = 0Xffffff;
-"#00B5AD"
-var gNodeNormalColor = 0x00B5AD ;
+var gNodeNormalColor = 0x00B5AD ; "#00B5AD"
 var gBackedgeNormalColor = 0x006f67;
 var gTextNormalColor = 0xffffff;
 var gTextNormalEndColor = 0x004545;
@@ -18,25 +17,26 @@ var gNextMatchColor = gTextMatchColor;
 
 var gFontFamily = 'Consolas, Monaco, monospace';
 var gFontSize = 45;
+function getUnit() {
+    var testText = new PIXI.Text(
+        'A',
+        new PIXI.TextStyle({
+            fontFamily: gFontFamily,
+            fill: gTextNormalColor,
+            fontSize: gFontSize
+        })
+    );
+    unitX = testText.width;
+    unitY = testText.height + 3;
+}
+getUnit();
 
-var testText = new PIXI.Text(
-    'A',
-    new PIXI.TextStyle({
-        fontFamily: gFontFamily,
-        fill: gTextNormalColor,
-        fontSize: gFontSize
-    })
-);
-
-var unitX = testText.width;
-var unitY = testText.height + 3;
 
 var app = new PIXI.Application(
     gWidth,
     gHeight,
     { backgroundColor: gBackGroundColor}
 );
-
 document.body.appendChild(app.view);
 
 function textFactory(rawString, defaultAlpha, activateCallBack, deactivateCallBack) {
@@ -77,23 +77,20 @@ function textFactory(rawString, defaultAlpha, activateCallBack, deactivateCallBa
     text.addChild(tailText);
     text.addChild(matchText);
 
-    text.highlight = function(state) {
-        if (state === "show_tail"){
-            tailText.alpha = 1;
-            this.show();
-        }
-        if (state === "hide_tail"){
-            tailText.alpha = 0;
-            this.hide();
-        }
-        if (state === "show_match"){
-            matchText.alpha = 1;
-        }
-        if (state === "hide_match"){
-            matchText.alpha = 0;
-        }
+    text.showTail = function(state) {
+        tailText.alpha = 1;
+        this.show();
     };
-
+    text.hideTail = function () {
+        tailText.alpha = 0;
+        this.hide();
+    };
+    text.showMatch = function () {
+        matchText.alpha = 1;
+    };
+    text.hideMatch = function () {
+        matchText.alpha = 0;
+    };
     text.show = function () {
         normalText.alpha = 1;
     };
@@ -112,6 +109,9 @@ function textFactory(rawString, defaultAlpha, activateCallBack, deactivateCallBa
 }
 
 function lineFactory(stPoint, edPoint, lineColor, crude) {
+    if (typeof(crude) === "undefined")
+        crude = 0;
+
     var graphics = new PIXI.Graphics();
     graphics.beginFill(lineColor, 1);
     graphics.drawRect(0, 0, 1, 1);
@@ -146,19 +146,23 @@ function lineFactory(stPoint, edPoint, lineColor, crude) {
         this._setEndPoint(startPoint, endPoint, normalLine);
         this._setEndPoint(startPoint, endPoint, crudeLine);
     };
-    line.highlight = function () {
+    line.showCrude = function () {
         crudeLine.alpha = 1;
     };
-    line.undoHighlight = function () {
+    line.hideCrude = function () {
         crudeLine.alpha = 0;
     };
-    line.setEndPoint(stPoint, edPoint);
 
+    line.setEndPoint(stPoint, edPoint);
     return line;
 }
 
-function arrowFactory(startPoint, endPoint){
-    var tempArrow = lineFactory(startPoint, endPoint, gNextNormalColor, 0);
+function arrowFactory(arrowColor){
+    var tempArrow = lineFactory(
+        new PIXI.Point(0, 0),
+        new PIXI.Point(0, 0),
+        arrowColor
+    );
     tempArrow.show = function(){
         this.alpha = 1;
     };
@@ -168,13 +172,17 @@ function arrowFactory(startPoint, endPoint){
     return tempArrow;
 }
 
-function backEdgeFactory(startPoint, endPoint) {
-    var backEdge = lineFactory(startPoint, endPoint, gBackedgeNormalColor, 0);
+function backEdgeFactory(backedgeColor) {
+    var backEdge = lineFactory(
+        new PIXI.Point(0, 0),
+        new PIXI.Point(0, 0),
+        backedgeColor
+    );
     backEdge.show = function(){
-        //this.alpha = 1;
+        this.alpha = 1;
     };
     backEdge.hide = function(){
-        //this.alpha = 0;
+        this.alpha = 0;
     };
     return backEdge;
 }
@@ -206,155 +214,33 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
     }
 
     var height = maxLen - minLen + 1;
-    function genGraphics(nodeColor) {
+    function genSprite(nodeColor) {
         var trapesoid = new PIXI.Polygon([
             new PIXI.Point(height * unitX, 0),
             new PIXI.Point((maxLen + 1) * unitX, 0),
             new PIXI.Point((maxLen + 1) * unitX, height * unitY),
             new PIXI.Point(0, height * unitY)
         ]);
-
         var graphics = new PIXI.Graphics();
         graphics.beginFill(nodeColor, 1);
         graphics.drawPolygon(trapesoid);
-        return graphics;
+        return new PIXI.Sprite(graphics.generateTexture());
     }
-
-    var samNode = new PIXI.Container();
-
-    var normalNode = new PIXI.Sprite(genGraphics(gNodeNormalColor).generateTexture());
-    var matchNode = new PIXI.Sprite(genGraphics(gNodeMatchColor).generateTexture());
-
+    var normalNode = genSprite(gNodeNormalColor);
     normalNode.alpha = 1;
+    var matchNode = genSprite(gNodeMatchColor);
     matchNode.alpha = 0;
 
+    var samNode = new PIXI.Container();
     samNode.addChild(normalNode);
     samNode.addChild(matchNode);
-
-    samNode.next = new Map();
-    samNode.addNext = function (key, nextId) {
-        var arrow = arrowFactory(
-            new PIXI.Point(0, 0),
-            new PIXI.Point(0, 0)
-        );
-        arrow.hide();
-        this.next.set(
-            key,
-            {
-                "nextId": nextId,
-                "arrow": arrow
-            }
-        );
-        samNode.addChild(arrow);
-    };
-    samNode._refreshOneNext = function (rank, targetId, arrow) {
-        var textLen = rank + minLen;
-        arrow.setEndPoint(
-            samNode.getPosition(rank, false, false),
-            nodeList[targetId].getPosition(textLen + 1, true, true, -samNode.x, -samNode.y)
-        )
-    };
-    samNode._refreshNext = function (rank) {
-        samNode.next.forEach(function (next, aim) {
-            samNode._refreshOneNext(rank, next['nextId'], next['arrow']);
-        });
-    };
-    var matchNext = lineFactory(
-        new PIXI.Point(0, 0),
-        new PIXI.Point(0, 0),
-        gNextMatchColor,
-        2
-    );
-    samNode.showMatchNext = function (targetId, textLen) {
-        this._refreshOneNext(textLen - minLen, targetId, matchNext);
-        matchNext.alpha = 1;
-    };
-    samNode.hideMatchNext = function () {
-        matchNext.alpha = 0;
-    };
-    samNode.hideMatchNext();
-    samNode.addChild(matchNext);
-
-    function activateTextCallback(textLen) {
-        var rank = textLen - minLen;
-        samNode._refreshNext(rank);
-        samNode.currentText = rank;
-        samNode.next.forEach(function (next, aim) {
-            var nextId = next['nextId'];
-            var arrow = next['arrow'];
-            arrow.show();
-            nodeList[nextId].activateText(textLen);
-        });
-    }
-    function deactivateTextCallback(textLen) {
-        this.currentText = undefined;
-        samNode.next.forEach(function (next, aim) {
-            var nextId = next['nextId'];
-            var arrow = next['arrow'];
-            arrow.hide();
-            nodeList[nextId].deactivateText(textLen);
-        });
-    }
-
-    samNode.texts = [];
-    for (var i  = 1; i <= height; i++){
-        var text = textFactory(
-            nodeText.slice(height - i),
-            (i === 1 || i === height) * 0.9,
-            activateTextCallback,
-            deactivateTextCallback
-        );
-        text.x = (height - i + 1) * unitX;
-        text.y = (i - 1) * unitY;
-        samNode.addChild(text);
-        samNode.texts.push(text);
-    }
-
     samNode.interactive = true;
+    samNode.maxLen = maxLen;
     samNode
         .on('pointerdown', onDragStart)
         .on('pointerup', onDragEnd)
         .on('pointerupoutside', onDragEnd)
         .on('pointermove', onDragMove);
-
-    samNode.activateText = function (textLen) {
-        var rank = Math.min(textLen - minLen + 1, height - 1);
-        samNode.texts[rank].highlight("show_tail");
-    };
-
-    samNode.deactivateText = function (textLen) {
-        var rank = Math.min(textLen - minLen + 1, height - 1);
-        samNode.texts[rank].highlight("hide_tail");
-    };
-    samNode.showMatchText = function (textLen) {
-        var rank = Math.min(textLen - minLen, height - 1);
-        samNode.texts[rank].highlight("show_match");
-    };
-    samNode.hideMatchText = function (textLen) {
-        var rank = Math.min(textLen - minLen, height - 1);
-        samNode.texts[rank].highlight("hide_match");
-    };
-
-    samNode.backEdge = backEdgeFactory(
-        new PIXI.Point(0, 0),
-        new PIXI.Point(0, 0)
-    );
-    samNode.backEdge.hide();
-    samNode.addChild(samNode.backEdge);
-    samNode.activateBackedge = function () {
-        samNode.backEdge.highlight();
-    };
-    samNode.deactivateBackedge = function () {
-        samNode.backEdge.undoHighlight();
-    };
-    samNode.sons = new Set();
-    samNode.addSon = function (sonId) {
-        this.sons.add(sonId);
-    };
-    samNode.deleteSon = function (sonId) {
-        this.sons.delete(sonId);
-    };
-
     samNode.getNodePosition = function (type, x, y) {
         x = typeof(x) === "undefined" ? 0: x + this.x;
         y = typeof(y) === "undefined" ? 0: y + this.y;
@@ -385,6 +271,112 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
         )
     };
 
+
+    //next
+    samNode.next = new Map();
+    samNode.addNext = function (key, nextId) {
+        var arrow = arrowFactory(gNextNormalColor);
+        arrow.hide();
+        this.next.set(
+            key,
+            {
+                "nextId": nextId,
+                "arrow": arrow
+            }
+        );
+        samNode.addChild(arrow);
+    };
+    samNode._refreshOneNext = function (rank, targetId, arrow) {
+        var textLen = rank + minLen;
+        arrow.setEndPoint(
+            samNode.getPosition(rank, false, false),
+            nodeList[targetId].getPosition(textLen + 1, true, true, -samNode.x, -samNode.y)
+        )
+    };
+    samNode._refreshNext = function (rank) {
+        samNode.next.forEach(function (next, aim) {
+            samNode._refreshOneNext(rank, next['nextId'], next['arrow']);
+        });
+    };
+    var matchNext = arrowFactory(gNextMatchColor);
+    samNode.showMatchNext = function (targetId, textLen) {
+        this._refreshOneNext(textLen - minLen, targetId, matchNext);
+        matchNext.alpha = 1;
+    };
+    samNode.hideMatchNext = function () {
+        matchNext.alpha = 0;
+    };
+    samNode.hideMatchNext();
+    samNode.addChild(matchNext);
+
+    //text
+    function activateTextCallback(textLen) {
+        var rank = textLen - minLen;
+        samNode._refreshNext(rank);
+        samNode.currentText = rank;
+        samNode.next.forEach(function (next, aim) {
+            var nextId = next['nextId'];
+            var arrow = next['arrow'];
+            arrow.show();
+            nodeList[nextId].activateText(textLen);
+        });
+    }
+    function deactivateTextCallback(textLen) {
+        this.currentText = undefined;
+        samNode.next.forEach(function (next, aim) {
+            var nextId = next['nextId'];
+            var arrow = next['arrow'];
+            arrow.hide();
+            nodeList[nextId].deactivateText(textLen);
+        });
+    }
+    samNode.texts = [];
+    for (var i  = 1; i <= height; i++){
+        var text = textFactory(
+            nodeText.slice(height - i),
+            (i === 1 || i === height) * 0.9,
+            activateTextCallback,
+            deactivateTextCallback
+        );
+        text.x = (height - i + 1) * unitX;
+        text.y = (i - 1) * unitY;
+        samNode.addChild(text);
+        samNode.texts.push(text);
+    }
+    samNode.activateText = function (textLen) {
+        var rank = Math.min(textLen - minLen + 1, height - 1);
+        samNode.texts[rank].showTail();
+    };
+    samNode.deactivateText = function (textLen) {
+        var rank = Math.min(textLen - minLen + 1, height - 1);
+        samNode.texts[rank].hideTail();
+    };
+    samNode.showMatchText = function (textLen) {
+        var rank = Math.min(textLen - minLen, height - 1);
+        samNode.texts[rank].showMatch();
+    };
+    samNode.hideMatchText = function (textLen) {
+        var rank = Math.min(textLen - minLen, height - 1);
+        samNode.texts[rank].hideMatch();
+    };
+
+    //backedge
+    samNode.backEdge = backEdgeFactory(gBackedgeNormalColor);
+    samNode.backEdge.showCrude();
+    samNode.addChild(samNode.backEdge);
+    samNode.showMatchBackedge = function () {
+        samNode.backEdge.showCrude();
+    };
+    samNode.hideMatchBackedge = function () {
+        samNode.backEdge.hideCrude();
+    };
+    samNode.sons = new Set();
+    samNode.addSon = function (sonId) {
+        this.sons.add(sonId);
+    };
+    samNode.deleteSon = function (sonId) {
+        this.sons.delete(sonId);
+    };
     samNode.father = -1;
     samNode.setFather = function (fatherId) {
         if (this.father != -1){
@@ -417,7 +409,6 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
     samNode.resize = function () {
         //todo
     };
-    samNode.maxLen = maxLen;
     return samNode;
 }
 
@@ -469,15 +460,6 @@ function test() {
     nodeList[3].addNext('B', 5);
     nodeList[4].addNext('B', 5);
 
-    /*
-    showOne(nodeList[0].getNodePosition("top"));
-    showOne(nodeList[0].getNodePosition("down"));
-
-    for (var i = 0; i <= 3 ; i ++){
-        showOne(nodeList[0].getPosition(i, 0));
-        showOne(nodeList[0].getPosition(i, 1));
-    }
-    */
 }
 
 test();
@@ -505,7 +487,7 @@ function matchProcessFactory(matchText) {
             })
         },
         activate_backedge: function (nodeId) {
-            nodeList[nodeId].activateBackedge();
+            nodeList[nodeId].showMatchBackedge();
             this.activity_element.push({
                 type: "backedge",
                 id: nodeId
@@ -527,7 +509,7 @@ function matchProcessFactory(matchText) {
                 if (element.type === "next")
                     nodeList[element.id].hideMatchNext();
                 if (element.type === "backedge")
-                    nodeList[element.id].deactivateBackedge();
+                    nodeList[element.id].hideMatchBackedge();
                 if (element.type === "text")
                     nodeList[element.id].hideMatchText(element.length);
             });
@@ -540,7 +522,6 @@ function matchProcessFactory(matchText) {
                 return false;
 
             var current_char = matchText[this.cur];
-
             if (nodeList[this.current_node].next.has(current_char)){
                 this.activate_node(this.current_node);
                 this.activate_text(this.current_node, this.current_match.length);
@@ -552,19 +533,18 @@ function matchProcessFactory(matchText) {
                     this.current_match.length
                 );
                 this.current_match += current_char;
-
                 this.current_node = next['nextId'];
+                this.cur += 1;
+
                 this.activate_node(this.current_node);
                 this.activate_text(this.current_node, this.current_match.length);
-
-                this.cur += 1;
             }
             else{
                 if (nodeList[this.current_node].father == -1){
                     this.current_match = "";
                     this.current_node = 0;
-
                     this.cur += 1;
+
                     this.activate_node(this.current_node);
                 }
                 else{
@@ -573,11 +553,11 @@ function matchProcessFactory(matchText) {
                     this.activate_backedge(this.current_node);
 
                     this.current_node = nodeList[this.current_node].father;
-                    this.activate_node(this.current_node);
-
                     this.current_match = this.current_match.slice(
                         this.current_match.length - nodeList[this.current_node].maxLen
                     );
+
+                    this.activate_node(this.current_node);
                     this.activate_text(this.current_node, this.current_match.length);
                 }
             }
@@ -601,8 +581,33 @@ function appendProcessFactory(appendText) {
         next: function () {
         }
     };
+/*
+void extend(int x){
+    int ox = newNode(len[omg]+1);
+    while(omg != -1 && nex[omg][x] == -1){
+        nex[omg][x] = ox;
+        omg = fa[omg];
+    }
+    if(omg == -1) fa[ox] = root;
+    else{
+        int omgx = nex[omg][x];
+        if(len[omgx] == len[omg]+1) fa[ox] = omgx;
+        else{
+            int mgx = newNode(len[omg]+1);
+            for(int i=0;i<mlen;i++)
+            nex[mgx][i] = nex[omgx][i];
+            fa[mgx] = fa[omgx];
+            fa[omgx] = fa[ox] = mgx;
+            while(omg != -1 && nex[omg][x] == omgx)
+                nex[omg][x] = mgx,omg = fa[omg];
+        }
+    }
+    omg = ox;
+}
+ */
     return appendProcess;
 }
+
 function genAppendProcess(appendText) {
     forward();
     process = appendProcessFactory(appendText);
@@ -634,65 +639,3 @@ function init() {
     app.stage.addChild(nodeList[0]);
 }
 
-/*
-struct Sam{
-    void run(char *arr){
-        int st = root,lens = 0;
-        for(int i = 0;arr[i];i++){
-            int x = arr[i] - 'a';
-            if(nex[st][x] != -1){
-                st = nex[st][x];
-                lens++;
-            }
-            else{
-                while(st != -1 && nex[st][x] == -1)
-                    st = fa[st];
-                if(st == -1)
-                    st = root, lens = 0;
-                else
-                    lens = len[st]+1, st = nex[st][x];
-            }
-            //update maxlen
-        }
-    }
-    int len[maxn*2],fa[maxn*2],nex[maxn*2][mlen];
-    int _cnt,root,omg;
-    int newNode(int L = 0){
-        len[_cnt] = L;
-        memset(nex[_cnt],fa[_cnt] = -1,sizeof(nex[_cnt]));
-        return _cnt++;
-    }
-    void init(){
-        _cnt = 0;
-        root = omg = newNode();
-    }
-    void extend(int x){
-        int ox = newNode(len[omg]+1);
-        while(omg != -1 && nex[omg][x] == -1){
-            nex[omg][x] = ox;
-            omg = fa[omg];
-        }
-        if(omg == -1) fa[ox] = root;
-        else{
-            int omgx = nex[omg][x];
-            if(len[omgx] == len[omg]+1) fa[ox] = omgx;
-            else{
-                int mgx = newNode(len[omg]+1);
-                for(int i=0;i<mlen;i++)
-                nex[mgx][i] = nex[omgx][i];
-                fa[mgx] = fa[omgx];
-                fa[omgx] = fa[ox] = mgx;
-                while(omg != -1 && nex[omg][x] == omgx)
-                    nex[omg][x] = mgx,omg = fa[omg];
-            }
-        }
-        omg = ox;
-    }
-    void build(char *arr){
-        init();
-        for(int i=0;arr[i];i++){
-            extend(arr[i] - 'a');
-        }
-    }
-};
- */
