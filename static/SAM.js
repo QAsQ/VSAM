@@ -586,6 +586,7 @@ function matchProcessFactory(matchText) {
                 }
             }
             console.log(this.current_match);
+            return true;
         }
     };
     return matchProcess;
