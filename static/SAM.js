@@ -268,16 +268,22 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
         }
         return null;
     };
-    samNode.getPosition = function (number, begin, isRelatively, x, y) {
+    samNode.getPosition = function (rank, begin, isRelatively, x, y) {
         x = typeof(x) === "undefined" ? 0: x + this.x;
         y = typeof(y) === "undefined" ? 0: y + this.y;
 
         if (isRelatively){
-            number = Math.min(number - minLen, height - 1);
+            rank = Math.min(rank - minLen, height - 1);
+        }
+        if(rank < 0){
+            return new PIXI.Point(
+                -1,
+                -1
+            );
         }
         return new PIXI.Point(
-            (begin ? height - number - 0.5 : (maxLen + 1)) * unitX + x,
-            (0.5 + number) * unitY + y
+            (begin ? height - rank - 0.5 : (maxLen + 1)) * unitX + x,
+            (0.5 + rank) * unitY + y
         )
     };
     samNode.inBound = function (textLen) {
@@ -334,8 +340,9 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
         samNode.next.forEach(function (next, aim) {
             var nextId = next['nextId'];
             var arrow = next['arrow'];
-            arrow.show();
-            nodeList[nextId].activateText(textLen);
+            var succ = nodeList[nextId].activateText(textLen);
+            if (succ)
+                arrow.show();
         });
     }
     function deactivateTextCallback(textLen) {
@@ -343,8 +350,9 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
         samNode.next.forEach(function (next, aim) {
             var nextId = next['nextId'];
             var arrow = next['arrow'];
-            arrow.hide();
-            nodeList[nextId].deactivateText(textLen);
+            var succ = nodeList[nextId].deactivateText(textLen);
+            if (succ)
+                arrow.hide();
         });
     }
     function initText() {
@@ -365,18 +373,28 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
     initText();
     samNode.activateText = function (textLen) {
         var rank = Math.min(textLen - minLen + 1, height - 1);
+        if (rank < 0)
+            return false;
         samNode.texts[rank].showTail();
+        return true;
     };
     samNode.deactivateText = function (textLen) {
         var rank = Math.min(textLen - minLen + 1, height - 1);
+        if (rank < 0)
+            return false;
         samNode.texts[rank].hideTail();
+        return true;
     };
     samNode.showMatchText = function (textLen) {
         var rank = Math.min(textLen - minLen, height - 1);
+        if (rank < 0)
+            return false;
         samNode.texts[rank].showMatch();
     };
     samNode.hideMatchText = function (textLen) {
         var rank = Math.min(textLen - minLen, height - 1);
+        if (rank < 0)
+            return false;
         samNode.texts[rank].hideMatch();
     };
 
@@ -726,7 +744,7 @@ function appendProcessFactory(appendText) {
             }
             if (this.omg === -1) { //growing done
                 if (this.mgx === -1)
-                nodeList[this.ox].setFather(0);
+                    nodeList[this.ox].setFather(0);
 
                 this.activate_node(0);
                 this.activate_node(this.ox);
@@ -757,13 +775,13 @@ function appendProcessFactory(appendText) {
 
                 return true;
             }
-            if (this.mgx !== -1){
-                if (nodeList[this.omg].next.get(x)['nextId'] != this.omgx){
+            if (this.mgx !== -1){ //update
+                if (nodeList[this.omg].next.get(x)['nextId'] != this.omgx
+                     &&  nodeList[this.omg].next.get(x)['nextId'] != this.mgx){
                     this.finish();
                     return true;
                 }
-                if (!nodeList[this.omg].inBound(this.textLen))
-                    nodeList[this.omg].addNext(x, this.mgx);
+                nodeList[this.omg].addNext(x, this.mgx);
 
                 this.activate_next(this.omg, this.mgx, this.textLen);
                 this.activate_text(this.omg, this.textLen);
@@ -814,7 +832,7 @@ function appendProcessFactory(appendText) {
 
                     nodeList[this.ox].setFather(this.mgx);
                     omgxNode.next.forEach(function (next, key){
-                        mgxNode.addNext(key, next['nodeId']);
+                        mgxNode.addNext(key, next['nextId']);
                     });
                     nodeList[this.mgx].addNext(x, this.ox);
 
@@ -842,7 +860,7 @@ function genAppendProcess() {
     process.next();
 }
 
-process = appendProcessFactory("B");
+process = appendProcessFactory("BABABAB");
 
 function next() {
     if (typeof(process) !== "undefined"){
