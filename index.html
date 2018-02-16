@@ -10,11 +10,21 @@
 </head>
 <body>
 <div class="ui inverted teal menu">
+    <div class="item">
+        <button class="ui icon button" onclick="next()">
+            <i class="play icon"> </i>
+        </button>
+    </div>
+    <div class="item">
+        <button class="ui icon button" onclick="forward()">
+            <i class="forward icon"> </i>
+        </button>
+    </div>
     <a class="item">VSAM</a>
     <div class="item">
         <div class="ui action input">
-            <input type="text" placeholder="string or char">
-            <button class="ui icon button">
+            <input id="append_input" type="text" placeholder="string or char">
+            <button class="ui icon button" onclick="genAppendProcess()">
                 <i class="plus green link icon"> </i>
             </button>
         </div>
@@ -31,16 +41,6 @@
                 <i class="chevron olive down link icon"> </i>
             </button>
         </div>
-    </div>
-    <div class="item">
-        <button class="ui icon button" onclick="next()">
-            <i class="play icon"> </i>
-        </button>
-    </div>
-    <div class="item">
-        <button class="ui icon button" onclick="forward()">
-            <i class="forward icon"> </i>
-        </button>
     </div>
     <div class="right item">
         <a class="item">About</a>
