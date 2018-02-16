@@ -195,6 +195,8 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
             this.y = new_position.y - this.dragCenter.y;
             this._refreshFather();
             this._refreshSon();
+            this._refreshExNext();
+            this._refreshExPre();
             if (typeof(this.currentText) !== "undefined") {
                 this._refreshNext(this.currentText);
             }
@@ -315,18 +317,50 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
     };
     var matchNext = arrowFactory(gNextMatchColor);
     var appendNext = arrowFactory(gNextAppendColor);
+    samNode.currentNext = "";
+    samNode.exPre = -1;
+    samNode._refreshExPre = function () {
+        if (this.exPre != -1){
+            nodeList[this.exPre]._refreshExNext();
+        }
+    };
+    samNode._refreshExNext = function () {
+        if (this.currentNext != ""){
+            if (this.currentNext == "match")
+                this._refreshOneNext(matchNext.soruceLen, matchNode.target, matchNext);
+            if (this.currentNext == "append")
+                this._refreshOneNext(appendNext.soruceLen, appendNode.target, appendNext);
+        }
+    };
     samNode.showMatchNext = function (targetId, textLen) {
         this._refreshOneNext(textLen - minLen, targetId, matchNext);
+        this.currentNext = "match";
+        matchNext.soruceLen = textLen - minLen;
+        matchNode.target = targetId;
+        nodeList[targetId].exPre = id;
         matchNext.alpha = 1;
+
     };
     samNode.hideMatchNext = function () {
+        if (this.currentNext == "match"){
+            nodeList[matchNode.target].exPre = -1;
+            this.currentNext = "";
+        }
         matchNext.alpha = 0;
     };
     samNode.showAppendNext = function (targetId, textLen) {
         this._refreshOneNext(textLen - minLen, targetId, appendNext);
+        this.currentNext = "append";
+        appendNext.soruceLen = textLen - minLen;
+        appendNext.target = targetId;
+        nodeList[targetId].exPre = id;
         appendNext.alpha = 1;
     };
     samNode.hideAppendNext = function () {
+        if (this.currentNext == "append") {
+            this.currentNext = "";
+            nodeList[appendNext.target].exPre = -1;
+        }
         appendNext.alpha = 0;
     };
     samNode.hideMatchNext();
@@ -924,8 +958,7 @@ function sort() {
         return widthList[st];
     }
     dfs(0);
-    console.log(widthList);
-    
+
     function placed(st, x, y) {
         nodeList[st].x = (widthList[st] - nodeList[st].maxLen) * unitX + x;
         nodeList[st].y = y;
@@ -940,4 +973,8 @@ function sort() {
         });
     }
     placed(0, 0, 0);
+}
+
+function adhocTest(event) {
+    console.log(event);
 }
