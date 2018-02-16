@@ -1,5 +1,5 @@
-var gWidth = 2080;
-var gHeight = 850;
+var gWidth = $(window).width();
+var gHeight = $(window).height();
 var gBackGroundColor = 0Xffffff;
 
 var app = new PIXI.Application(
@@ -27,7 +27,7 @@ var gTextAppendColor = 0x016936; "#016936"
 var gNextAppendColor = gTextAppendColor;
 
 var gFontFamily = 'Consolas, Monaco, monospace';
-var gFontSize = 25;
+var gFontSize = 23;
 function getUnit() {
     var testText = new PIXI.Text(
         'A',
@@ -64,6 +64,10 @@ function textFactory(rawString, defaultAlpha, activateCallBack, deactivateCallBa
         rawString,
         gTextMatchColor
     );
+    var appendText= subTextFactory(
+        rawString,
+        gTextAppendColor
+    );
     var tailText = subTextFactory(
         rawString[rawString.length - 1],
         gTextNormalEndColor
@@ -79,6 +83,7 @@ function textFactory(rawString, defaultAlpha, activateCallBack, deactivateCallBa
     text.addChild(normalText);
     text.addChild(tailText);
     text.addChild(matchText);
+    text.addChild(appendText);
 
     text.showTail = function(state) {
         tailText.alpha = 1;
@@ -88,18 +93,12 @@ function textFactory(rawString, defaultAlpha, activateCallBack, deactivateCallBa
         tailText.alpha = 0;
         this.hide();
     };
-    text.showMatch = function () {
-        matchText.alpha = 1;
-    };
-    text.hideMatch = function () {
-        matchText.alpha = 0;
-    };
-    text.show = function () {
-        normalText.alpha = 1;
-    };
-    text.hide = function () {
-        normalText.alpha = defaultAlpha;
-    };
+    text.showMatch = function () { matchText.alpha = 1};
+    text.hideMatch = function () { matchText.alpha = 0};
+    text.showAppend = function () { appendText.alpha = 1};
+    text.hideAppend = function () { appendText.alpha = 0};
+    text.show = function () { normalText.alpha = 1; };
+    text.hide = function () { normalText.alpha = defaultAlpha; };
     function activate(){
         text.show();
         activateCallBack(rawString.length);
@@ -166,12 +165,8 @@ function arrowFactory(arrowColor){
         new PIXI.Point(0, 0),
         arrowColor
     );
-    tempArrow.show = function(){
-        this.alpha = 1;
-    };
-    tempArrow.hide = function(){
-        this.alpha = 0;
-    };
+    tempArrow.show = function(){ this.alpha = 1};
+    tempArrow.hide = function(){ this.alpha = 0};
     return tempArrow;
 }
 
@@ -181,12 +176,8 @@ function backEdgeFactory(backedgeColor) {
         new PIXI.Point(0, 0),
         backedgeColor
     );
-    backEdge.show = function(){
-        this.alpha = 1;
-    };
-    backEdge.hide = function(){
-        this.alpha = 0;
-    };
+    backEdge.show = function(){ this.alpha = 1};
+    backEdge.hide = function(){ this.alpha = 0};
     return backEdge;
 }
 
@@ -231,7 +222,7 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
         graphics.drawPolygon(trapesoid);
         return new PIXI.Sprite(graphics.generateTexture());
     }
-    var normalNode, matchNode;
+    var normalNode, matchNode, appendNode;
 
     var samNode = new PIXI.Container();
     function initNode() {
@@ -239,8 +230,11 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
         normalNode.alpha = 1;
         matchNode = genSprite(gNodeMatchColor);
         matchNode.alpha = 0;
+        appendNode = genSprite(gNodeAppendColor);
+        appendNode.alpha = 0;
         samNode.addChild(normalNode);
         samNode.addChild(matchNode);
+        samNode.addChild(appendNode);
     }
     initNode();
     samNode.maxLen = maxLen;
@@ -277,10 +271,7 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
             rank = Math.min(rank - minLen, height - 1);
         }
         if(rank < 0){
-            return new PIXI.Point(
-                -1,
-                -1
-            );
+            return new PIXI.Point(-1, -1);
         }
         return new PIXI.Point(
             (begin ? height - rank - 0.5 : (maxLen + 1)) * unitX + x,
@@ -323,6 +314,7 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
         });
     };
     var matchNext = arrowFactory(gNextMatchColor);
+    var appendNext = arrowFactory(gNextAppendColor);
     samNode.showMatchNext = function (targetId, textLen) {
         this._refreshOneNext(textLen - minLen, targetId, matchNext);
         matchNext.alpha = 1;
@@ -330,8 +322,17 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
     samNode.hideMatchNext = function () {
         matchNext.alpha = 0;
     };
+    samNode.showAppendNext = function (targetId, textLen) {
+        this._refreshOneNext(textLen - minLen, targetId, appendNext);
+        appendNext.alpha = 1;
+    };
+    samNode.hideAppendNext = function () {
+        appendNext.alpha = 0;
+    };
     samNode.hideMatchNext();
+    samNode.hideAppendNext();
     samNode.addChild(matchNext);
+    samNode.addChild(appendNext);
 
     //text
     function activateTextCallback(textLen) {
@@ -398,15 +399,27 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
             return false;
         samNode.texts[rank].hideMatch();
     };
+    samNode.showAppendText = function (textLen) {
+        var rank = Math.min(textLen - minLen, height - 1);
+        if (rank < 0)
+            return false;
+        samNode.texts[rank].showAppend();
+    };
+    samNode.hideAppendText = function (textLen) {
+        var rank = Math.min(textLen - minLen, height - 1);
+        if (rank < 0)
+            return false;
+        samNode.texts[rank].hideAppend();
+    };
 
     //backedge
     samNode.backEdge = backEdgeFactory(gBackedgeNormalColor);
     samNode.backEdge.hide();
     samNode.addChild(samNode.backEdge);
-    samNode.showMatchBackedge = function () {
+    samNode.showCrudeBackedge = function () {
         samNode.backEdge.showCrude();
     };
-    samNode.hideMatchBackedge = function () {
+    samNode.hideCrudeBackedge = function () {
         samNode.backEdge.hideCrude();
     };
     samNode.sons = new Set();
@@ -434,18 +447,23 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
             nodeList[this.father].getNodePosition("down", -this.x, -this.y)
         );
     };
+
     samNode._refreshSon = function () {
         this.sons.forEach(function (sonId) {
             nodeList[sonId]._refreshFather();
         })
     };
     samNode.showMatchNode = function () {
-        normalNode.alpha = 0;
-        matchNode.alpha = 1;
+        normalNode.alpha = 0; matchNode.alpha = 1;
     };
     samNode.hideMatchNode = function () {
-        matchNode.alpha = 0;
-        normalNode.alpha = 1;
+        matchNode.alpha = 0; normalNode.alpha = 1;
+    };
+    samNode.showAppendNode = function () {
+        normalNode.alpha = 0; appendNode.alpha = 1;
+    };
+    samNode.hideAppendNode = function () {
+        appendNode.alpha = 0; normalNode.alpha = 1;
     };
     samNode.updateBoundary = function (position){
         if (position == "upper_up"){
@@ -536,7 +554,7 @@ function test() {
 
 }
 
-test();
+//test();
 
 function matchProcessFactory(matchText) {
     var matchProcess = {
@@ -556,7 +574,7 @@ function matchProcessFactory(matchText) {
             })
         },
         activate_backedge: function (nodeId) {
-            nodeList[nodeId].showMatchBackedge();
+            nodeList[nodeId].showCrudeBackedge();
             this.activity_element.push({
                 type: "backedge",
                 id: nodeId
@@ -578,7 +596,7 @@ function matchProcessFactory(matchText) {
                 if (element.type === "next")
                     nodeList[element.id].hideMatchNext();
                 if (element.type === "backedge")
-                    nodeList[element.id].hideMatchBackedge();
+                    nodeList[element.id].hideCrudeBackedge();
                 if (element.type === "text")
                     nodeList[element.id].hideMatchText(element.length);
             });
@@ -650,36 +668,36 @@ function genMatchProcess() {
 }
 
 var Sam = {
-    fullText : "AABB",
-    last: 5
+    fullText : "",
+    last: 0
 };
 
 function appendProcessFactory(appendText) {
     var appendProcess = {
         activity_element: [],
         activate_node: function(nodeId){
-            nodeList[nodeId].showMatchNode();
+            nodeList[nodeId].showAppendNode();
             this.activity_element.push({
                 type: "node",
                 id: nodeId
             })
         },
         activate_next: function(nodeId, targetId, textLen){
-            nodeList[nodeId].showMatchNext(targetId, textLen);
+            nodeList[nodeId].showAppendNext(targetId, textLen);
             this.activity_element.push({
                 type: "next",
                 id: nodeId
             })
         },
         activate_backedge: function (nodeId) {
-            nodeList[nodeId].showMatchBackedge();
+            nodeList[nodeId].showCrudeBackedge();
             this.activity_element.push({
                 type: "backedge",
                 id: nodeId
             })
         },
         activate_text: function (nodeId, textLength) {
-            nodeList[nodeId].showMatchText(textLength);
+            nodeList[nodeId].showAppendText(textLength);
             this.activity_element.push({
                 type: "text",
                 id: nodeId,
@@ -690,13 +708,13 @@ function appendProcessFactory(appendText) {
         deactivate_all: function () {
             this.activity_element.forEach(function (element, id, array) {
                 if (element.type === "node")
-                    nodeList[element.id].hideMatchNode();
+                    nodeList[element.id].hideAppendNode();
                 if (element.type === "next")
-                    nodeList[element.id].hideMatchNext();
+                    nodeList[element.id].hideAppendNext();
                 if (element.type === "backedge")
-                    nodeList[element.id].hideMatchBackedge();
+                    nodeList[element.id].hideCrudeBackedge();
                 if (element.type === "text")
-                    nodeList[element.id].hideMatchText(element.length);
+                    nodeList[element.id].hideAppendText(element.length);
             });
             this.activity_element = [];
         },
@@ -736,8 +754,8 @@ function appendProcessFactory(appendText) {
                     Sam.fullText + x
                 );
                 nodeList.push(node);
-                node.x = 16 * unitX;
-                node.y = 7 * unitY;
+                node.x = gWidth / 2 - (this.textLen + 1) * unitX / 2;
+                node.y = 2 * unitY + (this.textLen + 1) * unitY;
                 app.stage.addChild(node);
 
                 this.activate_node(this.ox);
@@ -861,20 +879,9 @@ function genAppendProcess() {
     process.next();
 }
 
-process = appendProcessFactory("BABABAB");
-
 function next() {
     if (typeof(process) !== "undefined"){
         process.next();
-        return;
-        console.log("==St=======");
-        console.log("appendText " + process.appendText);
-        console.log("textLen " + process.textLen);
-        console.log("omg " + process.omg);
-        console.log("ox " + process.ox);
-        console.log("omgx " + process.omgx);
-        console.log("mgx " + process.mgx);
-        console.log("==Ed======");
     }
 }
 
@@ -895,6 +902,42 @@ function reset(){
 function init() {
     nodeList = [];
     nodeList.push(nodeFactory(0, 0, 0, ""));
-    nodeList[0].x = unitX * 5;
+    nodeList[0].x = gWidth / 2 - unitX / 2;
     app.stage.addChild(nodeList[0]);
+    Sam = {
+        fullText : "",
+        last: 0
+    }
+}
+
+init();
+
+function sort() {
+    var widthList = [];
+    
+    function dfs(st) {
+        var sums = 0;
+        nodeList[st].sons.forEach(function (sonId) {
+            sums += dfs(sonId);
+        });
+        widthList[st] = Math.max(sums, nodeList[st].maxLen + 2);
+        return widthList[st];
+    }
+    dfs(0);
+    console.log(widthList);
+    
+    function placed(st, x, y) {
+        nodeList[st].x = (widthList[st] - nodeList[st].maxLen) * unitX + x;
+        nodeList[st].y = y;
+        nodeList[st]._refreshFather();
+
+        y += (nodeList[st].getHeight() + 1) * unitY;
+        if (st === 0)
+            y += unitY;
+        nodeList[st].sons.forEach(function (sonId) {
+            placed(sonId, x, y);
+            x += widthList[sonId] * unitX;
+        });
+    }
+    placed(0, 0, 0);
 }
