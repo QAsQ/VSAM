@@ -193,14 +193,15 @@ function backEdgeFactory(backedgeColor) {
 function nodeFactory(id, minLen, maxLen, nodeText) {
     function onDragStart(event) {
         this.data = event.data;
+        this.dragCenter = this.data.getLocalPosition(this);
         this.alpha = 1;
         this.dragging = true;
     }
     function onDragMove() {
         if (this.dragging) {
             var new_position = this.data.getLocalPosition(this.parent);
-            this.x = new_position.x;
-            this.y = new_position.y;
+            this.x = new_position.x - this.dragCenter.x;
+            this.y = new_position.y - this.dragCenter.y;
             this._refreshFather();
             this._refreshSon();
             if (typeof(this.currentText) !== "undefined") {
@@ -242,10 +243,10 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
         samNode.addChild(matchNode);
     }
     initNode();
-    samNode.interactive = true;
     samNode.maxLen = maxLen;
     samNode.minLen = minLen;
     samNode.nodeText = nodeText;
+    samNode.interactive = true;
     samNode
         .on('pointerdown', onDragStart)
         .on('pointerup', onDragEnd)
