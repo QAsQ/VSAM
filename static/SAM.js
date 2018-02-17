@@ -15,7 +15,7 @@ var gNodeMatchColor= parseColor("#695730");
 var gTextMatchColor = parseColor("#b69631");
 var gNextMatchColor = gTextMatchColor;
 var gNodeAppendColor= parseColor("#183918");
-var gTextAppendColor = parseColor("#577d47");
+var gTextAppendColor = parseColor("#7bb44d");
 var gNextAppendColor = gTextAppendColor;
 
 var app = new PIXI.Application(
@@ -26,11 +26,13 @@ var app = new PIXI.Application(
 document.body.appendChild(app.view);
 
 var gLineWidth = 3;
-var gNodeDefaultAlpha = 0.7;
+var gNodeDefaultAlpha = 0.82;
+var gTextDefaultAlpha = 0.5;
+var gTextActivateAlpha = 1;
 var nodeList = [];
 
 var gFontFamily = 'Consolas, Monaco, monospace';
-var gFontSize = 33;
+var gFontSize = 38;
 function getUnit() {
     var testText = new PIXI.Text(
         'A',
@@ -43,7 +45,22 @@ function getUnit() {
     unitX = testText.width;
     unitY = testText.height + 3;
 }
+$(".showcase").css({
+    "font-family": gFontFamily,
+    "font-size": gFontSize+"px"
+});
+$("#sam").css({"color": "#c8e2d7"});
+$("#appendShowcase").css({"color": "#7bb44d"});
+$("#matchShowcase").css({"color": "#b69631"});
 getUnit();
+$("#matchShowcase").css({
+    "top": ($("#sam").height() + $("#menu").height() + unitY) + "px",
+    "visibility": "hidden"
+});
+$("#appendShowcase").css({
+    "top": ($("#sam").height() + $("#menu").height() + unitY) + "px",
+    "visibility": "hidden"
+});
 
 function initBackGround() {
     function onDragStart(event) {
@@ -79,7 +96,7 @@ function initBackGround() {
     var graphics = new PIXI.Graphics();
     graphics.beginFill(gBackGroundColor, 1);
     graphics.drawRect(0, 0, gWidth, gHeight);
-    var backGround = new PIXI.Sprite(graphics.generateTexture());
+    backGround = new PIXI.Sprite(graphics.generateTexture());
     app.stage.addChild(backGround);
 
     backGround.interactive = true;
@@ -89,6 +106,7 @@ function initBackGround() {
         .on('pointerupoutside', onDragEnd)
         .on('pointermove', onDragMove);
 }
+var backGround;
 initBackGround();
 
 function textFactory(rawString, defaultAlpha, activateCallBack, deactivateCallBack) {
@@ -146,8 +164,8 @@ function textFactory(rawString, defaultAlpha, activateCallBack, deactivateCallBa
     text.hideMatch = function () { matchText.alpha = 0};
     text.showAppend = function () { appendText.alpha = 1};
     text.hideAppend = function () { appendText.alpha = 0};
-    text.show = function () { normalText.alpha = 1; };
-    text.hide = function () { normalText.alpha = defaultAlpha; };
+    text.show = function () { normalText.alpha = gTextActivateAlpha};
+    text.hide = function () { normalText.alpha = defaultAlpha};
     function activate(){
         text.show();
         activateCallBack(rawString.length);
@@ -447,7 +465,7 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
         for (var i  = 1; i <= height; i++){
             var text = textFactory(
                 nodeText.slice(height - i),
-                (i === 1 || i === height) * 0.9,
+                (i === 1 || i === height) * gTextDefaultAlpha,
                 activateTextCallback,
                 deactivateTextCallback
             );
@@ -642,6 +660,7 @@ function test() {
 //test();
 
 function matchProcessFactory(matchText) {
+    matchShowCase.fullText = matchText;
     var matchProcess = {
         activity_element: [],
         activate_node: function(nodeId){
@@ -687,7 +706,7 @@ function matchProcessFactory(matchText) {
             });
             this.activity_element = [];
         },
-        full_str: matchText,
+        full_str: "",
         cur: 0,
         current_node: 0,
         current_match:  "",
@@ -698,6 +717,7 @@ function matchProcessFactory(matchText) {
                 return false;
 
             var current_char = matchText[this.cur];
+            matchShowCase.currentChar = current_char;
             if (nodeList[this.current_node].next.has(current_char)){
                 this.activate_node(this.current_node);
                 this.activate_text(this.current_node, this.current_match.length);
@@ -709,6 +729,7 @@ function matchProcessFactory(matchText) {
                     this.current_match.length
                 );
                 this.current_match += current_char;
+                matchShowCase.currentMatch = this.current_match;
                 this.current_node = next['nextId'];
                 this.cur += 1;
 
@@ -718,6 +739,7 @@ function matchProcessFactory(matchText) {
             else{
                 if (nodeList[this.current_node].father == -1){
                     this.current_match = "";
+                    appendShowCase.currentMatch = "";
                     this.current_node = 0;
                     this.cur += 1;
 
@@ -732,12 +754,12 @@ function matchProcessFactory(matchText) {
                     this.current_match = this.current_match.slice(
                         this.current_match.length - nodeList[this.current_node].maxLen
                     );
+                    matchShowCase.currentMatch = this.current_match;
 
                     this.activate_node(this.current_node);
                     this.activate_text(this.current_node, this.current_match.length);
                 }
             }
-            console.log(this.current_match);
             return true;
         }
     };
@@ -750,15 +772,18 @@ function genMatchProcess() {
     $("#match_input").val("");
     process = matchProcessFactory(matchText);
     $("[name='controller']").removeClass('disabled');
+    $("#matchShowcase").css({"visibility": "visible"});
     process.next();
 }
-
-var Sam = {
-    fullText : "",
-    last: 0
-};
+//enter
+$("#match_input").keydown(function(e) {
+    if (e.keyCode == 13) {
+        genMatchProcess();
+    }
+});
 
 function appendProcessFactory(appendText) {
+    appendShowCase.leftText = appendText;
     var appendProcess = {
         activity_element: [],
         activate_node: function(nodeId){
@@ -820,6 +845,15 @@ function appendProcessFactory(appendText) {
             this.omgx = -1;
             this.mgx = -1;
             this.appendText = this.appendText.slice(1);
+            appendShowCase.leftText = this.appendText;
+            if (this.appendText != "")
+                appendShowCase.currentChar = this.appendText[0];
+        },
+        logger: function () {
+            console.log("=st=========");
+            console.log(this.omg);
+            console.log(this.omgx);
+            console.log("=ed=========");
         },
         next: function () {
             this.deactivate_all();
@@ -828,6 +862,7 @@ function appendProcessFactory(appendText) {
                 return false;
 
             var x = this.appendText[0];
+            appendShowCase.currentChar = x;
             if (this.ox === -1) { //start init
                 this.ox = nodeList.length;
                 this.omg = Sam.last;
@@ -840,22 +875,41 @@ function appendProcessFactory(appendText) {
                     Sam.fullText + x
                 );
                 nodeList.push(node);
-                node.x = gWidth / 2 - (this.textLen + 1) * unitX / 2;
-                node.y = 2 * unitY + (this.textLen + 1) * unitY;
+                node.x = gWidth * 0.618 - (this.textLen + 1) * unitX + backGround.x ;
+                node.y = gHeight * 0.382 + this.textLen * unitY + backGround.y;
                 app.stage.addChild(node);
 
                 this.activate_node(this.ox);
                 return true;
             }
             if (this.omg === -1) { //growing done
-                if (this.mgx === -1)
+                if (this.mgx === -1) {
                     nodeList[this.ox].setFather(0);
 
-                this.activate_node(0);
-                this.activate_node(this.ox);
-                this.activate_backedge(this.ox);
+                    this.activate_node(0);
+                    this.activate_node(this.ox);
+                    this.activate_backedge(this.ox);
+                }
 
                 this.finish();
+
+                return true;
+            }
+            if (this.mgx !== -1){ //update
+                if (nodeList[this.omg].next.get(x)['nextId'] != this.omgx
+                    &&  nodeList[this.omg].next.get(x)['nextId'] != this.mgx){
+                    this.finish();
+                    return true;
+                }
+                nodeList[this.omg].addNext(x, this.mgx);
+
+                this.activate_next(this.omg, this.mgx, this.textLen);
+                this.activate_text(this.omg, this.textLen);
+                this.activate_text(this.mgx, this.textLen + 1);
+
+                this.textLen -= 1;
+                if (!nodeList[this.omg].inBound(this.textLen))
+                    this.omg = nodeList[this.omg].father;
 
                 return true;
             }
@@ -875,24 +929,6 @@ function appendProcessFactory(appendText) {
                 this.activate_next(this.omg, this.ox, this.textLen);
 
                 this.textLen--;
-                if (!nodeList[this.omg].inBound(this.textLen))
-                    this.omg = nodeList[this.omg].father;
-
-                return true;
-            }
-            if (this.mgx !== -1){ //update
-                if (nodeList[this.omg].next.get(x)['nextId'] != this.omgx
-                     &&  nodeList[this.omg].next.get(x)['nextId'] != this.mgx){
-                    this.finish();
-                    return true;
-                }
-                nodeList[this.omg].addNext(x, this.mgx);
-
-                this.activate_next(this.omg, this.mgx, this.textLen);
-                this.activate_text(this.omg, this.textLen);
-                this.activate_text(this.mgx, this.textLen + 1);
-
-                this.textLen -= 1;
                 if (!nodeList[this.omg].inBound(this.textLen))
                     this.omg = nodeList[this.omg].father;
 
@@ -963,14 +999,25 @@ function genAppendProcess() {
     $("#append_input").val("");
     process = appendProcessFactory(appendText);
     $("[name='controller']").removeClass('disabled');
+    $("#appendShowcase").css({"visibility": "visible"});
     process.next();
 }
+
+//enter
+$("#append_input").keydown(function(e) {
+    if (e.keyCode == 13) {
+        genAppendProcess();
+    }
+});
 
 function next() {
     if (typeof(process) !== "undefined"){
         var succ = process.next();
-        if (!succ)
+        if (!succ){
             $("[name='controller']").addClass('disabled');
+            $("#matchShowcase").css({"visibility": "hidden"});
+            $("#appendShowcase").css({"visibility": "hidden"});
+        }
         return succ;
     }
     return false;
@@ -988,16 +1035,36 @@ function reset(){
     }
     init();
 }
-
+var Sam = new Vue({
+    el: '#sam',
+    data: {
+        fullText : "",
+        last: 0
+    }
+});
+var appendShowCase = new Vue({
+    el: "#appendShowcase",
+    data: {
+        leftText: "",
+        currentChar: ""
+    }
+});
+var matchShowCase = new Vue({
+    el: "#matchShowcase",
+    data: {
+        currentChar: "",
+        fullText: "",
+        currentMatch: ""
+    }
+});
 function init() {
     nodeList = [];
     nodeList.push(nodeFactory(0, 0, 0, ""));
-    nodeList[0].x = gWidth / 2 - unitX / 2;
+    nodeList[0].x = gWidth * 0.618 - unitX / 2 + backGround.x;
+    nodeList[0].y = backGround.y;
+    Sam.fullText = "";
+    Sam.last = 0;
     app.stage.addChild(nodeList[0]);
-    Sam = {
-        fullText : "",
-        last: 0
-    };
     $("[name='controller']").addClass('disabled');
 }
 
@@ -1031,5 +1098,8 @@ function sort() {
             x += widthList[sonId] * unitX;
         });
     }
-    placed(0, 0, 0);
+    var startX = backGround.x - (widthList[0] + 2) * unitX + gWidth * 0.618;
+    if (gWidth * 0.618 < widthList[0] * unitX)
+        startX += 0.382 * gWidth;
+    placed(0, startX, backGround.y);
 }

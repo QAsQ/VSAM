@@ -6,50 +6,81 @@
     <script src="static/jquery.min.js"></script>
     <script src="static/pixi.min.js"></script>
     <script src="static/semantic.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue"></script>
+    <style>
+        .showcase{
+            position: absolute;
+            -moz-user-select: none;
+            -khtml-user-select: none;
+            user-select: none;
+        }
+    </style>
     <link rel="stylesheet" type="text/css" href="static/semantic.css">
 </head>
 <body>
 <div id="menu" class="ui inverted teal menu" style="margin: 0px">
     <a class="item">VSAM</a>
     <div class="item">
-        <div class="ui action input">
+        <div class="ui action input"
+             data-tooltip="append" data-position="bottom center">
             <input id="append_input" type="text" placeholder="string or char">
             <button class="ui icon button" onclick="genAppendProcess()">
-                <i class="plus green link icon"> </i>
+                <i class="plus olive link icon"> </i>
             </button>
         </div>
     </div>
     <div class="item">
-        <button class="ui icon button" onclick="reset()">
+        <button class="ui icon button" onclick="reset()"
+                data-tooltip="restart" data-position="bottom center" data-inverted="">
             <i class="undo red icon"> </i>
         </button>
     </div>
     <div class="item">
-        <div class="ui action input">
+        <div class="ui action input"
+             data-tooltip="match" data-position="bottom center">
             <input id="match_input" type="text" placeholder="string">
             <button class="ui icon button" onclick="genMatchProcess()">
-                <i class="chevron olive down link icon"> </i>
+                <i class="chevron down brown link icon"> </i>
             </button>
         </div>
     </div>
     <div class="item">
-        <button name="controller" class="ui icon button" onclick="next()">
+        <button name="controller" class="ui icon button" onclick="next()"
+                data-tooltip="next" data-position="bottom center">
             <i class="play icon"> </i>
         </button>
     </div>
     <div class="item">
-        <button name="controller" class="ui icon button" onclick="forward()">
+        <button name="controller" class="ui icon button" onclick="forward()"
+                data-tooltip="forward" data-position="bottom center">
             <i class="forward icon"> </i>
         </button>
     </div>
     <div class="item">
-        <button class="ui icon button" onclick="sort()">
+        <button class="ui icon button" onclick="sort()"
+            data-tooltip="sort" data-position="bottom center">
             <i class="grid layout icon"> </i>
         </button>
     </div>
     <div class="right item">
         <a class="item">About</a>
     </div>
+</div>
+<h1 id="sam" class="showcase">
+    模式串: {{ fullText }}
+</h1>
+<div id=appendShowcase class=showcase>
+    <h1>
+        当前字符: {{currentChar}} <br>
+        Buffer: {{leftText}}
+    </h1>
+</div>
+<div id=matchShowcase class=showcase>
+    <h1>
+        当前字符: {{currentChar}}<br>
+        当前匹配: {{currentMatch}}<br>
+        匹配串: {{fullText}}
+    </h1>
 </div>
 <script src="static/SAM.js"></script>
 </body>
