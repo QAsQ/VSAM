@@ -1,6 +1,24 @@
-var gWidth = $(window).width();
-var gHeight = $(window).height();
-var gBackGroundColor = 0Xffffff;
+var gWidth = $(document.body).width();
+var gHeight = $(document.body).height() - $("#menu").height() - 5;
+function parseColor(color){
+    return parseInt(color.slice(1), 16);
+}
+
+var gBackGroundColor = parseColor("#e8ffed");
+
+var gNodeNormalColor = parseColor("#8c998a");
+var gBackedgeNormalColor = gNodeNormalColor;
+var gTextNormalColor = parseColor("#c8e2d7");
+var gTextNormalEndColor = parseColor("#2e3f31");
+var gNextNormalColor = gTextNormalEndColor;
+
+var gNodeMatchColor= parseColor("#695730");
+var gTextMatchColor = parseColor("#b69631");
+var gNextMatchColor = gTextMatchColor;
+
+var gNodeAppendColor= parseColor("#183918");
+var gTextAppendColor = parseColor("#577d47");
+var gNextAppendColor = gTextAppendColor;
 
 var app = new PIXI.Application(
     gWidth,
@@ -12,22 +30,8 @@ document.body.appendChild(app.view);
 var gLineWidth = 3;
 var nodeList = [];
 
-var gNodeNormalColor = 0x00B5AD ; "#00B5AD"
-var gBackedgeNormalColor = 0x006f67;
-var gTextNormalColor = 0xffffff;
-var gTextNormalEndColor = 0x004545;
-var gNextNormalColor = gTextNormalEndColor;
-
-var gNodeMatchColor= 0x269826; "#269826"
-var gTextMatchColor = 0x32CD32; "#32CD32"
-var gNextMatchColor = gTextMatchColor;
-
-var gNodeAppendColor= 0x019437; "#019437"
-var gTextAppendColor = 0x016936; "#016936"
-var gNextAppendColor = gTextAppendColor;
-
 var gFontFamily = 'Consolas, Monaco, monospace';
-var gFontSize = 23;
+var gFontSize = 33;
 function getUnit() {
     var testText = new PIXI.Text(
         'A',
@@ -41,6 +45,52 @@ function getUnit() {
     unitY = testText.height + 3;
 }
 getUnit();
+
+function initBackGround() {
+    function onDragStart(event) {
+        this.pos = new PIXI.Point(
+           event.data.originalEvent.clientX,
+           event.data.originalEvent.clientY
+        );
+        this.dragging = true;
+    }
+    function onDragMove(event) {
+        if (this.dragging) {
+            var newPos = new PIXI.Point(
+                event.data.originalEvent.clientX,
+                event.data.originalEvent.clientY
+            );
+            var offset = new PIXI.Point(
+                this.pos.x - newPos.x,
+                this.pos.y - newPos.y
+            );
+            app.stage.x -= offset.x;
+            app.stage.y -= offset.y;
+
+            this.x += offset.x;
+            this.y += offset.y;
+
+            this.pos = newPos;
+        }
+    }
+    function onDragEnd() {
+        this.dragging = false;
+        this.data = null;
+    }
+    var graphics = new PIXI.Graphics();
+    graphics.beginFill(gBackGroundColor, 1);
+    graphics.drawRect(0, 0, gWidth, gHeight);
+    var backGround = new PIXI.Sprite(graphics.generateTexture());
+    app.stage.addChild(backGround);
+
+    backGround.interactive = true;
+    backGround
+        .on('pointerdown', onDragStart)
+        .on('pointerup', onDragEnd)
+        .on('pointerupoutside', onDragEnd)
+        .on('pointermove', onDragMove);
+}
+initBackGround();
 
 function textFactory(rawString, defaultAlpha, activateCallBack, deactivateCallBack) {
     function subTextFactory(str, color) {
@@ -182,6 +232,7 @@ function backEdgeFactory(backedgeColor) {
 }
 
 function nodeFactory(id, minLen, maxLen, nodeText) {
+
     function onDragStart(event) {
         this.data = event.data;
         this.dragCenter = this.data.getLocalPosition(this);
@@ -326,24 +377,24 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
     };
     samNode._refreshExNext = function () {
         if (this.currentNext != ""){
-            if (this.currentNext == "match")
-                this._refreshOneNext(matchNext.soruceLen, matchNode.target, matchNext);
-            if (this.currentNext == "append")
-                this._refreshOneNext(appendNext.soruceLen, appendNode.target, appendNext);
+            if (this.currentNext === "match")
+                this._refreshOneNext(matchNext.soruceLen, matchNext.target, matchNext);
+            if (this.currentNext === "append")
+                this._refreshOneNext(appendNext.soruceLen, appendNext.target, appendNext);
         }
     };
     samNode.showMatchNext = function (targetId, textLen) {
         this._refreshOneNext(textLen - minLen, targetId, matchNext);
         this.currentNext = "match";
         matchNext.soruceLen = textLen - minLen;
-        matchNode.target = targetId;
+        matchNext.target = targetId;
         nodeList[targetId].exPre = id;
         matchNext.alpha = 1;
 
     };
     samNode.hideMatchNext = function () {
-        if (this.currentNext == "match"){
-            nodeList[matchNode.target].exPre = -1;
+        if (this.currentNext === "match"){
+            nodeList[matchNext.target].exPre = -1;
             this.currentNext = "";
         }
         matchNext.alpha = 0;
@@ -357,7 +408,7 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
         appendNext.alpha = 1;
     };
     samNode.hideAppendNext = function () {
-        if (this.currentNext == "append") {
+        if (this.currentNext === "append") {
             this.currentNext = "";
             nodeList[appendNext.target].exPre = -1;
         }
@@ -963,6 +1014,8 @@ function sort() {
         nodeList[st].x = (widthList[st] - nodeList[st].maxLen) * unitX + x;
         nodeList[st].y = y;
         nodeList[st]._refreshFather();
+        nodeList[st]._refreshExNext();
+        nodeList[st]._refreshExPre();
 
         y += (nodeList[st].getHeight() + 1) * unitY;
         if (st === 0)
@@ -973,8 +1026,4 @@ function sort() {
         });
     }
     placed(0, 0, 0);
-}
-
-function adhocTest(event) {
-    console.log(event);
 }
