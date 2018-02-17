@@ -749,6 +749,7 @@ function genMatchProcess() {
     matchText = $("#match_input").val();
     $("#match_input").val("");
     process = matchProcessFactory(matchText);
+    $("[name='controller']").removeClass('disabled');
     process.next();
 }
 
@@ -961,22 +962,26 @@ function genAppendProcess() {
     var appendText = $("#append_input").val();
     $("#append_input").val("");
     process = appendProcessFactory(appendText);
+    $("[name='controller']").removeClass('disabled');
     process.next();
 }
 
 function next() {
     if (typeof(process) !== "undefined"){
-        process.next();
+        var succ = process.next();
+        if (!succ)
+            $("[name='controller']").addClass('disabled');
+        return succ;
     }
+    return false;
 }
 
 function forward() {
-    if (typeof(process) !== "undefined")
-        while(process.next())
-            process.next();
+    while(next());
 }
 
 function reset(){
+    forward();
     for (var i = 0; i < nodeList.length; i++){
         app.stage.removeChild(nodeList[i]);
         nodeList[i] = undefined;
@@ -992,7 +997,8 @@ function init() {
     Sam = {
         fullText : "",
         last: 0
-    }
+    };
+    $("[name='controller']").addClass('disabled');
 }
 
 init();
