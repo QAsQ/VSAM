@@ -11,11 +11,9 @@ var gBackedgeNormalColor = gNodeNormalColor;
 var gTextNormalColor = parseColor("#c8e2d7");
 var gTextNormalEndColor = parseColor("#2e3f31");
 var gNextNormalColor = gTextNormalEndColor;
-
 var gNodeMatchColor= parseColor("#695730");
 var gTextMatchColor = parseColor("#b69631");
 var gNextMatchColor = gTextMatchColor;
-
 var gNodeAppendColor= parseColor("#183918");
 var gTextAppendColor = parseColor("#577d47");
 var gNextAppendColor = gTextAppendColor;
@@ -28,6 +26,7 @@ var app = new PIXI.Application(
 document.body.appendChild(app.view);
 
 var gLineWidth = 3;
+var gNodeDefaultAlpha = 0.7;
 var nodeList = [];
 
 var gFontFamily = 'Consolas, Monaco, monospace';
@@ -254,7 +253,7 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
         }
     }
     function onDragEnd() {
-        this.alpha = 0.9;
+        this.alpha = gNodeDefaultAlpha;
         this.dragging = false;
         this.data = null;
     }
@@ -294,6 +293,7 @@ function nodeFactory(id, minLen, maxLen, nodeText) {
     samNode.minLen = minLen;
     samNode.nodeText = nodeText;
     samNode.interactive = true;
+    samNode.alpha = gNodeDefaultAlpha;
     samNode
         .on('pointerdown', onDragStart)
         .on('pointerup', onDragEnd)
