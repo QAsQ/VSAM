@@ -1078,7 +1078,7 @@ function sort() {
         nodeList[st].sons.forEach(function (sonId) {
             sums += dfs(sonId);
         });
-        widthList[st] = Math.max(sums, nodeList[st].maxLen + 2);
+        widthList[st] = Math.max(sums, nodeList[st].maxLen + 1);
         return widthList[st];
     }
     dfs(0);
