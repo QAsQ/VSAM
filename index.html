@@ -2,10 +2,12 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Visual Suffic Automaton</title>
+    <title>Visual Suffix Automaton</title>
+    <link href="favicon.ico" rel="shortcut icon">
     <script src="static/jquery.min.js"></script>
     <script src="static/pixi.min.js"></script>
-    <script src="static/semantic.js"></script>
+    <link rel="'stylesheet" type="text/css" href="static/semantic.min.css">
+    <script src="static/semantic.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/vue"></script>
     <style>
         .showcase{
@@ -18,8 +20,10 @@
     <link rel="stylesheet" type="text/css" href="static/semantic.css">
 </head>
 <body>
-<div id="menu" class="ui inverted teal menu" style="margin: 0px">
-    <a class="item">VSAM</a>
+<div id="menu" class="ui stackable inverted teal menu" style="margin: 0px">
+    <div class="item">
+        Visual Suffix Automaton
+    </div>
     <div class="item">
         <div class="ui action input"
              data-tooltip="append" data-position="bottom center">
@@ -44,13 +48,13 @@
             </button>
         </div>
     </div>
-    <div class="item">
+    <div class="item buttons">
         <button name="controller" class="ui icon button" onclick="next()"
                 data-tooltip="next" data-position="bottom center">
             <i class="play icon"> </i>
         </button>
     </div>
-    <div class="item">
+    <div class="item buttons">
         <button name="controller" class="ui icon button" onclick="forward()"
                 data-tooltip="forward" data-position="bottom center">
             <i class="forward icon"> </i>
@@ -63,7 +67,17 @@
         </button>
     </div>
     <div class="right item">
-        <a class="item">About</a>
+        <button class="ui button" onclick="$('#about').modal('show')">
+            About
+        </button>
+    </div>
+</div>
+<div class="ui middle modal" id="about">
+    <div class="ui header">About</div>
+    <div class="ui content">
+        <p>大力感谢栗主席 ⁄(⁄ ⁄•⁄ω⁄•⁄ ⁄)⁄</p>
+        <p>介绍 & Github:<a href="https://github.com/QAsQ/VSAM">Click Here</a></p>
+        <p>© 2018 QAsQ All Rights Reserved</p>
     </div>
 </div>
 <h1 id="sam" class="showcase">

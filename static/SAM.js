@@ -775,6 +775,7 @@ function genMatchProcess() {
     $("#matchShowcase").css({"visibility": "visible"});
     process.next();
 }
+
 //enter
 $("#match_input").keydown(function(e) {
     if (e.keyCode == 13) {
