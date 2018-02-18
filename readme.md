@@ -1,6 +1,5 @@
 # Visual Suffix AutoMaton
 ![VSAM-logo.png](https://i.loli.net/2018/02/18/5a89705e5efa2.png)
-[TOC]
 ## 简介
 
 顾名思义，这是一个后缀自动机的可视化实现。这里有一个[在线地址](http://liziyang.space/VSAM/)（大力感谢栗主席⁄(⁄ ⁄•⁄ω⁄•⁄ ⁄)⁄）
@@ -33,18 +32,14 @@
 ##VSAM
 ![VSAM.png](https://i.loli.net/2018/02/18/5a8970949dc52.png)
 ### 图例
-![hint.png](https://i.loli.net/2018/02/18/5a897373b8d08.png)
-SAM对应的模式串会直接显示在背景上
+
+SAM对应的模式串会直接显示在背景上：![hint.png](https://i.loli.net/2018/02/18/5a897373b8d08.png)
+
+在 VSAM 中，状态被表示为一个梯形：![node.png](https://i.loli.net/2018/02/18/5a8970b3c54aa.png)
 
 
+鼠标移动到对应字符串时，对应的字符串被激活并且显示能转移到的下一个节点：![next.png](https://i.loli.net/2018/02/18/5a897373c92f6.png)
 
-![node.png](https://i.loli.net/2018/02/18/5a8970b3c54aa.png)
-在 VSAM 中，状态被表示为一个梯形
-
-
-
-![next.png](https://i.loli.net/2018/02/18/5a897373c92f6.png)
-鼠标移动到对应字符串时，对应的字符串被激活并且显示能转移到的下一个节点
 
 ## 操作
 
